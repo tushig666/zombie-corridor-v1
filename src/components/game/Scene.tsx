@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -20,18 +21,16 @@ export default function GameScene() {
   const [gameState, setGameState] = useState<GameState>(INITIAL_GAME_STATE);
   const [gameStarted, setGameStarted] = useState(false);
   const [review, setReview] = useState<PostGamePerformanceReviewOutput | null>(null);
+  const [distToWall, setDistToWall] = useState(10);
   
-  // Ref to track latest state for the animation loop to avoid stale closures
   const latestGameStateRef = useRef<GameState>(gameState);
   useEffect(() => {
     latestGameStateRef.current = gameState;
   }, [gameState]);
 
-  // Concurrency and timing guards for AI scaling
   const scalingInProgressRef = useRef(false);
   const lastScalingAttemptRef = useRef(0);
 
-  // Refs for Three.js objects
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -43,6 +42,8 @@ export default function GameScene() {
   const clockRef = useRef(new THREE.Clock());
   const keysRef = useRef<Record<string, boolean>>({});
   const lastShotTimeRef = useRef(0);
+  const flashRef = useRef<HTMLDivElement>(null);
+  
   const statsRef = useRef({
     zombiesKilled: {} as Record<string, number>,
     totalDamageTaken: 0,
@@ -65,6 +66,15 @@ export default function GameScene() {
     velocity: THREE.Vector3;
     createdAt: number;
   }
+
+  const triggerDamageFlash = () => {
+    if (flashRef.current) {
+      flashRef.current.style.backgroundColor = 'rgba(255, 0, 60, 0.4)';
+      setTimeout(() => {
+        if (flashRef.current) flashRef.current.style.backgroundColor = 'rgba(255, 0, 60, 0)';
+      }, 100);
+    }
+  };
 
   const resetGame = () => {
     const newState = { ...INITIAL_GAME_STATE, startTime: Date.now(), lastDifficultyAdjustment: Date.now() };
@@ -99,9 +109,8 @@ export default function GameScene() {
     const current = latestGameStateRef.current;
     const now = Date.now();
     
-    // Throttle checks and ensure no parallel calls
     if (scalingInProgressRef.current) return;
-    if (now - lastScalingAttemptRef.current < 30000) return; // Minimum 30s between calls
+    if (now - lastScalingAttemptRef.current < 30000) return;
 
     scalingInProgressRef.current = true;
     lastScalingAttemptRef.current = now;
@@ -131,8 +140,6 @@ export default function GameScene() {
         }
       }));
     } catch (e) {
-      // Fallback logic handled within zombieDifficultyScaler wrapper, 
-      // but we log here for dev visibility
     } finally {
       scalingInProgressRef.current = false;
     }
@@ -142,35 +149,17 @@ export default function GameScene() {
     const stats = ZOMBIE_DATA[zType];
     const group = new THREE.Group();
     
-    // Low-poly body
     const bodyGeo = new THREE.BoxGeometry(0.6, stats.height, 0.4);
     const bodyMat = new THREE.MeshStandardMaterial({ color: stats.color });
     const body = new THREE.Mesh(bodyGeo, bodyMat);
     body.position.y = stats.height / 2;
     group.add(body);
 
-    // Head with features
     const headGeo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
     const headMat = new THREE.MeshStandardMaterial({ color: '#ddaa88' });
     const head = new THREE.Mesh(headGeo, headMat);
     head.position.y = stats.height + 0.1;
     group.add(head);
-
-    // Eyes
-    const eyeGeo = new THREE.BoxGeometry(0.05, 0.05, 0.05);
-    const eyeMat = new THREE.MeshBasicMaterial({ color: '#ff0000' });
-    const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
-    eyeL.position.set(-0.1, stats.height + 0.15, 0.21);
-    const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
-    eyeR.position.set(0.1, stats.height + 0.15, 0.21);
-    group.add(eyeL, eyeR);
-
-    // Mouth
-    const mouthGeo = new THREE.BoxGeometry(0.2, 0.05, 0.05);
-    const mouthMat = new THREE.MeshBasicMaterial({ color: '#330000' });
-    const mouth = new THREE.Mesh(mouthGeo, mouthMat);
-    mouth.position.set(0, stats.height + 0.05, 0.21);
-    group.add(mouth);
 
     group.position.set((Math.random() - 0.5) * (CORRIDOR_WIDTH - 1.5), 0, zPos);
     
@@ -217,7 +206,6 @@ export default function GameScene() {
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Initialization
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0a0505);
     scene.fog = new THREE.FogExp2(0x0a0505, 0.035);
@@ -238,48 +226,31 @@ export default function GameScene() {
     scene.add(player);
     playerRef.current = player;
 
-    // Lighting
     const ambientLight = new THREE.AmbientLight(0xff0000, 0.2);
     scene.add(ambientLight);
 
-    // Initial Corridor
     const createSegment = (z: number) => {
       const group = new THREE.Group();
-      
-      const floorGeo = new THREE.PlaneGeometry(CORRIDOR_WIDTH, SEGMENT_LENGTH);
       const floorMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
-      const floor = new THREE.Mesh(floorGeo, floorMat);
+      const floor = new THREE.Mesh(new THREE.PlaneGeometry(CORRIDOR_WIDTH, SEGMENT_LENGTH), floorMat);
       floor.rotation.x = -Math.PI / 2;
       group.add(floor);
 
-      const wallGeo = new THREE.PlaneGeometry(SEGMENT_LENGTH, CORRIDOR_HEIGHT);
       const wallMat = new THREE.MeshStandardMaterial({ color: 0x2a1a1a });
-      
-      const leftWall = new THREE.Mesh(wallGeo, wallMat);
+      const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(SEGMENT_LENGTH, CORRIDOR_HEIGHT), wallMat);
       leftWall.position.set(-CORRIDOR_WIDTH / 2, CORRIDOR_HEIGHT / 2, 0);
       leftWall.rotation.y = Math.PI / 2;
       group.add(leftWall);
 
-      const rightWall = new THREE.Mesh(wallGeo, wallMat);
+      const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(SEGMENT_LENGTH, CORRIDOR_HEIGHT), wallMat);
       rightWall.position.set(CORRIDOR_WIDTH / 2, CORRIDOR_HEIGHT / 2, 0);
       rightWall.rotation.y = -Math.PI / 2;
       group.add(rightWall);
 
-      const ceilingGeo = new THREE.PlaneGeometry(CORRIDOR_WIDTH, SEGMENT_LENGTH);
-      const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x110505 });
-      const ceiling = new THREE.Mesh(ceilingGeo, ceilingMat);
+      const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(CORRIDOR_WIDTH, SEGMENT_LENGTH), new THREE.MeshStandardMaterial({ color: 0x110505 }));
       ceiling.position.y = CORRIDOR_HEIGHT;
       ceiling.rotation.x = Math.PI / 2;
       group.add(ceiling);
-
-      const fixture = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3), new THREE.MeshStandardMaterial({ color: 0x444444 }));
-      fixture.position.set(0, CORRIDOR_HEIGHT - 0.1, 0);
-      fixture.rotation.z = Math.PI/2;
-      group.add(fixture);
-
-      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-      bulb.position.set(0, CORRIDOR_HEIGHT - 0.15, 0);
-      group.add(bulb);
 
       const pointLight = new THREE.PointLight(0xff0000, 1.5, 8);
       pointLight.position.set(0, CORRIDOR_HEIGHT - 0.5, 0);
@@ -330,8 +301,6 @@ export default function GameScene() {
       const frameId = requestAnimationFrame(animate);
       const delta = clockRef.current.getDelta();
       const time = clockRef.current.getElapsedTime();
-
-      // Use the ref to get the latest state for frame calculations
       const currentGameState = latestGameStateRef.current;
 
       if (!gameStarted || currentGameState.isGameOver) {
@@ -340,20 +309,22 @@ export default function GameScene() {
       }
 
       const moveSpeed = 5 * delta;
-      const direction = new THREE.Vector3();
-      if (keysRef.current['KeyW']) direction.z -= 1;
-      if (keysRef.current['KeyS']) direction.z += 1;
-      if (keysRef.current['KeyA']) direction.x -= 1;
-      if (keysRef.current['KeyD']) direction.x += 1;
+      const moveDir = new THREE.Vector3();
+      if (keysRef.current['KeyW']) moveDir.z -= 1;
+      if (keysRef.current['KeyS']) moveDir.z += 1;
+      if (keysRef.current['KeyA']) moveDir.x -= 1;
+      if (keysRef.current['KeyD']) moveDir.x += 1;
       
-      direction.normalize().applyEuler(playerRef.current!.rotation);
-      playerRef.current!.position.add(direction.multiplyScalar(moveSpeed));
+      moveDir.normalize().applyEuler(playerRef.current!.rotation);
+      playerRef.current!.position.add(moveDir.multiplyScalar(moveSpeed));
       playerRef.current!.position.x = Math.max(-CORRIDOR_WIDTH/2 + 0.5, Math.min(CORRIDOR_WIDTH/2 - 0.5, playerRef.current!.position.x));
       
       collapseWallRef.current!.position.z += COLLAPSE_WALL_SPEED * delta;
-      
-      const distToWall = playerRef.current!.position.z - collapseWallRef.current!.position.z;
-      if (distToWall < 1.0) {
+      const dWall = playerRef.current!.position.z - collapseWallRef.current!.position.z;
+      setDistToWall(dWall);
+
+      if (dWall < 1.0) {
+        triggerDamageFlash();
         setGameState(prev => ({ ...prev, hp: prev.hp - 100 * delta }));
       }
 
@@ -374,23 +345,19 @@ export default function GameScene() {
         z.mesh.lookAt(playerRef.current!.position.x, 0, playerRef.current!.position.z);
 
         if (z.mesh.position.distanceTo(playerRef.current!.position) < 1.2) {
+          triggerDamageFlash();
           setGameState(prev => {
             const damage = 20 * delta;
             statsRef.current.totalDamageTaken += damage;
             return { ...prev, hp: prev.hp - damage };
           });
         }
-
-        if (z.mesh.position.z < playerRef.current!.position.z - DESPAWN_DISTANCE) {
-          scene.remove(z.mesh);
-          zombiesRef.current.delete(z);
-        }
       });
 
       bulletsRef.current.forEach(b => {
         b.mesh.position.add(new THREE.Vector3().copy(b.velocity).multiplyScalar(delta));
         zombiesRef.current.forEach(z => {
-          if (!z.isDead && b.mesh.position.distanceTo(z.mesh.position.clone().add(new THREE.Vector3(0, statsRef.current.shotsHit % 2 === 0 ? 0.8 : 1.0, 0))) < 1.0) {
+          if (!z.isDead && b.mesh.position.distanceTo(z.mesh.position.clone().add(new THREE.Vector3(0, 1, 0))) < 1.0) {
             z.hp--;
             statsRef.current.shotsHit++;
             scene.remove(b.mesh);
@@ -435,15 +402,7 @@ export default function GameScene() {
     };
     animate();
 
-    const onResize = () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    };
-    window.addEventListener('resize', onResize);
-
     return () => {
-      window.removeEventListener('resize', onResize);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('mousemove', onMouseMove);
@@ -453,29 +412,34 @@ export default function GameScene() {
   }, [gameStarted]);
 
   return (
-    <div className="relative w-full h-screen overflow-hidden cursor-crosshair" ref={containerRef}>
+    <div 
+      id="game-container" 
+      className={gameStarted && !gameState.isGameOver ? 'playing-active' : ''} 
+      ref={containerRef}
+    >
+      <div id="damage-flash" ref={flashRef} />
+      
       {!gameStarted && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/90 z-50 text-center p-4">
-          <h1 className="text-6xl font-bold text-primary mb-4 tracking-tighter">ZOMBIE CORRIDOR</h1>
-          <p className="text-muted-foreground mb-8 max-w-md">
-            Emergency lockdown in effect. Survive the endless facility. Don't let the collapse wall catch you.
-          </p>
-          <div className="flex flex-col gap-2 mb-8 text-left text-sm opacity-80 border-l-2 border-primary pl-4">
-            <p>W, A, S, D — Move</p>
-            <p>MOUSE — Look</p>
-            <p>LEFT CLICK — Shoot</p>
+        <div id="start-screen">
+          <h1>ZOMBIE CORRIDOR</h1>
+          <div className="start-subtitle">FACILITY CONTAINMENT REBUILD V2</div>
+          <button className="btn" onClick={resetGame}>ENTER LOCKDOWN ZONE</button>
+          
+          <div className="instructions-block">
+            <span style={{ color: 'var(--red-emergency)', fontWeight: 'bold' }}>MISSION OBJECTIVE:</span>
+            <p style={{ fontSize: '0.85rem', margin: '10px 0' }}>SURVIVE THE ENDLESS CORRIDOR. NEUTRALIZE BIO-HAZARDS. AVOID THERMAL COLLAPSE WALL.</p>
+            <table>
+              <tbody>
+                <tr><td><span className="key-highlight">W, A, S, D</span></td><td>TACTICAL MOVEMENT</td></tr>
+                <tr><td><span className="key-highlight">MOUSE</span></td><td>AIMING RETICLE</td></tr>
+                <tr><td><span className="key-highlight">LEFT CLICK</span></td><td>ENGAGE FIREARM</td></tr>
+              </tbody>
+            </table>
           </div>
-          <button 
-            onClick={resetGame}
-            className="px-8 py-3 bg-primary text-white font-bold rounded-sm hover:bg-accent transition-colors"
-          >
-            INITIALIZE SURVIVAL PROTOCOL
-          </button>
         </div>
       )}
 
-      {gameStarted && <HUD state={gameState} />}
-      <div id="crosshair"></div>
+      {gameStarted && <HUD state={gameState} distToWall={distToWall} />}
 
       {gameState.isGameOver && (
         <GameOver 
@@ -485,9 +449,18 @@ export default function GameScene() {
           onQuit={() => setGameStarted(false)} 
         />
       )}
-      
-      {gameStarted && gameState.hp < 30 && (
-        <div className="absolute inset-0 pointer-events-none animate-pulse-red bg-primary/20 mix-blend-multiply z-10" />
+
+      {/* Mobile Controls Overlay */}
+      {gameStarted && !gameState.isGameOver && (
+        <div id="mobile-controls">
+          <div id="mobile-dpad">
+            <div className="mobile-btn" style={{ gridColumn: '2', gridRow: '1' }} onTouchStart={() => keysRef.current['KeyW'] = true} onTouchEnd={() => keysRef.current['KeyW'] = false}>W</div>
+            <div className="mobile-btn" style={{ gridColumn: '1', gridRow: '2' }} onTouchStart={() => keysRef.current['KeyA'] = true} onTouchEnd={() => keysRef.current['KeyA'] = false}>A</div>
+            <div className="mobile-btn" style={{ gridColumn: '2', gridRow: '2' }} onTouchStart={() => keysRef.current['KeyS'] = true} onTouchEnd={() => keysRef.current['KeyS'] = false}>S</div>
+            <div className="mobile-btn" style={{ gridColumn: '3', gridRow: '2' }} onTouchStart={() => keysRef.current['KeyD'] = true} onTouchEnd={() => keysRef.current['KeyD'] = false}>D</div>
+          </div>
+          <div id="mobile-fire" onTouchStart={shoot}>FIRE</div>
+        </div>
       )}
     </div>
   );
