@@ -419,7 +419,7 @@ export default function GameScene() {
     const intersects = raycaster.intersectObjects(targets, true);
 
     if (intersects.length > 0) {
-      // PRECISE IMPACT FEEDBACK
+      // PRECISE IMPACT FEEDBACK: Trigger exactly at collision point
       const hitPoint = intersects[0].point;
       createBloodSplatter(hitPoint);
 
@@ -592,7 +592,7 @@ export default function GameScene() {
         setGameState(prev => ({ ...prev, progression: { ...prev.progression, timeInCurrentStage: newTimeInStage } }));
       }
 
-      // PERFECT WASD CONTROLS
+      // PERFECT WASD CONTROLS: Calibrated for view-relative movement
       const keys = engineRef.current.keysPressed;
       const moveDir = new THREE.Vector3();
       
@@ -605,8 +605,8 @@ export default function GameScene() {
 
       if (keys['KeyW']) moveDir.add(direction);
       if (keys['KeyS']) moveDir.sub(direction);
-      if (keys['KeyA']) moveDir.add(lateral);
-      if (keys['KeyD']) moveDir.sub(lateral);
+      if (keys['KeyA']) moveDir.sub(lateral);
+      if (keys['KeyD']) moveDir.add(lateral);
 
       if (moveDir.length() > 0) {
         moveDir.normalize();
