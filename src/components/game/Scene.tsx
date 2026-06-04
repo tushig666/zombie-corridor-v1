@@ -656,8 +656,8 @@ export default function GameScene() {
       const moveDir = new THREE.Vector3();
       const keys = engineRef.current.keysPressed;
       
-      // Fix reversed WASD by explicitly mapping to world directions
-      const forward = new THREE.Vector3(0, 0, 1).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
+      // Fixed WASD by aligning with world +Z facing orientation
+      const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
       const right = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
 
       if (keys['KeyW']) moveDir.add(forward);
@@ -750,7 +750,7 @@ export default function GameScene() {
     segments.forEach(s => { scene.remove(s.mesh); s.mesh.traverse(obj => { if (obj instanceof THREE.Mesh) { obj.geometry.dispose(); if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose()); else obj.material.dispose(); } }); });
     engineRef.current.segments = [];
     player.position.set(0, 4.2, 0);
-    player.rotation.y = Math.PI; // Correctly face forward (+Z)
+    player.rotation.y = Math.PI; // Face forward (+Z)
     camera.rotation.y = 0;
     
     const toRemove = weaponGroup.children.filter(child => child instanceof THREE.Group && child !== engineRef.current.muzzleFlashMesh);
