@@ -41,6 +41,7 @@ export default function GameScene() {
   const containerRef = useRef<HTMLDivElement>(null);
   const flashRef = useRef<HTMLDivElement>(null);
   const bgMusicRef = useRef<HTMLAudioElement>(null);
+  const gunshotPoolRef = useRef<HTMLAudioElement[]>([]);
   const isGameOverTriggered = useRef(false);
   const [gameState, setGameState] = useState<GameState>(INITIAL_GAME_STATE);
   const [distToWall, setDistToWall] = useState(20);
@@ -63,7 +64,7 @@ export default function GameScene() {
     wallGroup: new THREE.Group(),
     wallGrid: new THREE.Group(),
     wallLight: new THREE.SpotLight(0xff003c, 5.0, 45),
-    ambientLight: new THREE.AmbientLight(0xffffff, 0.4), // Low light for horror feel
+    ambientLight: new THREE.AmbientLight(0xffffff, 0.4),
   });
 
   const stateRef = useRef<GameState>(INITIAL_GAME_STATE);
@@ -71,6 +72,34 @@ export default function GameScene() {
   useEffect(() => {
     stateRef.current = gameState;
   }, [gameState]);
+
+  // Pre-allocate audio pool for gunshots to handle overlapping sounds
+  useEffect(() => {
+    const pool: HTMLAudioElement[] = [];
+    const gunshotUrl = "https://www.myinstants.com/media/sounds/gunshot-new.mp3";
+    for (let i = 0; i < 10; i++) {
+      const audio = new Audio(gunshotUrl);
+      audio.load();
+      pool.push(audio);
+    }
+    gunshotPoolRef.current = pool;
+  }, []);
+
+  const playGunshotSound = () => {
+    // Find an available sound in the pool
+    const sound = gunshotPoolRef.current.find(a => a.paused || a.ended);
+    if (sound) {
+      sound.currentTime = 0;
+      sound.play().catch(() => {});
+    } else {
+      // If all are playing, force restart the first one
+      const first = gunshotPoolRef.current[0];
+      if (first) {
+        first.currentTime = 0;
+        first.play().catch(() => {});
+      }
+    }
+  };
 
   const triggerDamageFlash = () => {
     if (flashRef.current) {
@@ -120,7 +149,7 @@ export default function GameScene() {
 
     const group = new THREE.Group();
     
-    // SCARY CREEPY DESIGN: Desaturated sickly palette
+    // SCARY CREEPY DESIGN: Desaturated sickly unified palette
     const skinMat = new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.9, metalness: 0.05 }); 
     const clothingMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 1.0 }); 
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 }); 
@@ -335,6 +364,9 @@ export default function GameScene() {
       shotsFired: prev.shotsFired + 1
     }));
 
+    // Play gunshot sound
+    playGunshotSound();
+
     // Visual Recoil
     weaponGroup.position.z = -0.35; 
     weaponGroup.rotation.x = 0.2; 
@@ -444,7 +476,7 @@ export default function GameScene() {
     scene.add(ambientLight);
 
     player.position.set(0, 1.8, 0);
-    player.rotation.y = Math.PI; // Correct starting orientation: face +Z forward
+    player.rotation.y = Math.PI; 
     player.add(camera);
     scene.add(player);
 
@@ -543,7 +575,7 @@ export default function GameScene() {
 
         engineRef.current.ambientLight.intensity *= 0.85;
         if (scene.fog instanceof THREE.FogExp2) {
-          scene.fog.density += 0.005;
+          scene.fog.density += 0.01;
         }
 
         setGameState(prev => ({
@@ -810,4 +842,3 @@ export default function GameScene() {
     </div>
   );
 }
-
