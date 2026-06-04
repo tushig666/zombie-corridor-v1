@@ -85,7 +85,6 @@ export default function GameScene() {
     const current = stateRef.current;
     const stage = current.progression.currentStage;
 
-    // Level State Tier Weights
     let type: ZombieType;
     const rand = Math.random();
 
@@ -119,20 +118,17 @@ export default function GameScene() {
     const scoreValue = Math.round(stats.scoreValue * multiplier);
 
     const group = new THREE.Group();
-    // Scary desaturated unified palette
     const skinMat = new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.9, metalness: 0.05 }); 
     const clothingMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 1.0 }); 
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 }); 
     const mouthMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
     const goreMat = new THREE.MeshStandardMaterial({ color: 0x7f1d1d, roughness: 0.8 }); 
 
-    // Head - slightly tilted for creepiness
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.44, 0.44), skinMat);
     head.position.y = 1.45;
     head.rotation.z = (Math.random() - 0.5) * 0.4;
     group.add(head);
 
-    // Eyes - tiny glowing red pinpricks
     const lEye = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.05), eyeMat);
     lEye.position.set(-0.12, 1.55, 0.22);
     group.add(lEye);
@@ -140,22 +136,18 @@ export default function GameScene() {
     rEye.position.x = 0.12;
     group.add(rEye);
 
-    // Mouth - large screaming void
     const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.22, 0.04), mouthMat);
     mouth.position.set(0, 1.32, 0.22);
     group.add(mouth);
 
-    // Torso
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.8, 0.3), clothingMat);
     torso.position.y = 0.9;
     group.add(torso);
 
-    // Exposed Wound
     const wound = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.4, 0.05), goreMat);
     wound.position.set(0, 0.9, 0.16);
     group.add(wound);
 
-    // Arms - asymmetric and creepy
     const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.75), skinMat);
     leftArm.position.set(-0.35, 1.15, 0.3);
     group.add(leftArm);
@@ -164,7 +156,6 @@ export default function GameScene() {
     rightArm.position.set(0.35, 1.1, 0.4);
     group.add(rightArm);
 
-    // Legs
     const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.15), clothingMat);
     leftLeg.position.set(-0.18, 0.3, 0);
     group.add(leftLeg);
@@ -441,6 +432,7 @@ export default function GameScene() {
     scene.add(ambientLight);
 
     player.position.set(0, 1.8, 0);
+    player.rotation.y = Math.PI; // Face forward (+Z)
     player.add(camera);
     scene.add(player);
 
@@ -478,15 +470,12 @@ export default function GameScene() {
       if (!current.isGameActive || current.isGameOver) return;
       
       if (document.pointerLockElement !== containerRef.current) {
-        // Defensive pointer lock handling for sandboxed environments
         try {
           const lockPromise = containerRef.current?.requestPointerLock() as any;
           if (lockPromise && typeof lockPromise.catch === 'function') {
             lockPromise.catch(() => { /* Pointer lock blocked/failed - ignore */ });
           }
-        } catch (err) {
-          /* Fallback for browsers that throw synchronously */
-        }
+        } catch (err) { /* Catch sync errors */ }
       }
       handleShoot();
     });
@@ -555,10 +544,11 @@ export default function GameScene() {
 
       const moveDir = new THREE.Vector3();
       const keys = engineRef.current.keysPressed;
-      if (keys['KeyW']) moveDir.z += 1; 
-      if (keys['KeyS']) moveDir.z -= 1;
-      if (keys['KeyA']) moveDir.x += 1;
-      if (keys['KeyD']) moveDir.x -= 1;
+      // Controls relative to view direction
+      if (keys['KeyW']) moveDir.z -= 1; // Local Forward
+      if (keys['KeyS']) moveDir.z += 1; // Local Backward
+      if (keys['KeyA']) moveDir.x -= 1; // Local Left
+      if (keys['KeyD']) moveDir.x += 1; // Local Right
 
       if (moveDir.length() > 0) {
         moveDir.normalize().applyEuler(new THREE.Euler(0, player.rotation.y, 0));
@@ -690,7 +680,7 @@ export default function GameScene() {
     engineRef.current.segments = [];
     
     player.position.set(0, 1.8, 0);
-    player.rotation.y = 0; 
+    player.rotation.y = Math.PI; // Face forward (+Z)
     for (let i = 0; i < 4; i++) {
       engineRef.current.segments.push(createSegment(i * SEGMENT_LENGTH));
     }
