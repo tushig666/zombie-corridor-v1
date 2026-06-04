@@ -21,6 +21,7 @@ interface ZombieInstance {
   isDead: boolean;
   isDying: boolean;
   deathOpacity: number;
+  deathTimer: number; // For the delayed disappearance
   lastAttackTime: number;
   leftArm: THREE.Group;
   rightArm: THREE.Group;
@@ -139,7 +140,7 @@ export default function GameScene() {
 
   const createBloodSplatter = (position: THREE.Vector3) => {
     const { scene, particles } = engineRef.current;
-    const particleCount = 25;
+    const particleCount = 20;
     const geometry = new THREE.BoxGeometry(0.12, 0.12, 0.12);
     const material = new THREE.MeshStandardMaterial({ 
       color: 0x880000, 
@@ -153,15 +154,15 @@ export default function GameScene() {
       mesh.position.copy(position);
       
       const velocity = new THREE.Vector3(
-        (Math.random() - 0.5) * 10,
-        (Math.random() - 0.5) * 10 + 5,
-        (Math.random() - 0.5) * 10
+        (Math.random() - 0.5) * 8,
+        (Math.random() - 0.5) * 8 + 4,
+        (Math.random() - 0.5) * 8
       );
 
       particles.push({
         mesh,
         velocity,
-        life: 1.0 + Math.random() * 0.5
+        life: 0.8 + Math.random() * 0.4
       });
       scene.add(mesh);
     }
@@ -217,7 +218,6 @@ export default function GameScene() {
     const skinMat = new THREE.MeshStandardMaterial({ color: 0x8a7a7a, roughness: 0.8 }); 
     const muscleMat = new THREE.MeshStandardMaterial({ color: 0x4a0000, emissive: 0xff0000, emissiveIntensity: 0.8 }); 
 
-    // Gorgon-Class Design: Hyper-muscular and asymmetrical
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), skinMat);
     head.position.y = 1.35;
     head.position.z = 0.1;
@@ -232,7 +232,6 @@ export default function GameScene() {
     gut.position.z = 0.15;
     group.add(gut);
 
-    // Mutated Right Arm (Blade Claw)
     const rightArmGroup = new THREE.Group();
     const rArmBase = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.9), skinMat);
     rArmBase.position.set(0, 0, 0.45);
@@ -243,7 +242,6 @@ export default function GameScene() {
     rightArmGroup.position.set(0.65, 1.1, 0);
     group.add(rightArmGroup);
 
-    // Mutated Left Arm (Pincer Pincers)
     const leftArmGroup = new THREE.Group();
     const lArmBase = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.7), skinMat);
     lArmBase.position.set(0, 0, 0.35);
@@ -290,6 +288,7 @@ export default function GameScene() {
       isDead: false,
       isDying: false,
       deathOpacity: 1.0,
+      deathTimer: 0.8, // Slightly longer visible death
       lastAttackTime: 0,
       leftArm: leftArmGroup,
       rightArm: rightArmGroup,
@@ -440,7 +439,6 @@ export default function GameScene() {
 
         if (zombie.hp <= 0 && !zombie.isDying) {
           zombie.isDying = true;
-          // Set materials to transparent for fade effect
           zombie.mesh.traverse(obj => {
             if (obj instanceof THREE.Mesh) {
               const original = obj.material as THREE.MeshStandardMaterial;
@@ -531,12 +529,12 @@ export default function GameScene() {
     containerRef.current?.addEventListener('mousedown', () => {
       if (document.pointerLockElement !== containerRef.current) {
         try {
-          if (typeof containerRef.current?.requestPointerLock === 'function') {
-            containerRef.current.requestPointerLock();
+          const promise = containerRef.current?.requestPointerLock();
+          if (promise && typeof (promise as any).catch === 'function') {
+            (promise as any).catch(() => {});
           }
         } catch (e) {
-          // Gracefully handle security errors in restricted environments
-          console.warn("Pointer lock could not be requested.");
+          // Silent catch for sandboxed environments
         }
       }
       handleShoot();
@@ -640,16 +638,20 @@ export default function GameScene() {
         if (z.isDead) return false;
 
         if (z.isDying) {
-          z.deathOpacity -= delta * 0.8;
-          z.mesh.traverse(obj => {
-            if (obj instanceof THREE.Mesh) {
-              (obj.material as THREE.MeshStandardMaterial).opacity = z.deathOpacity;
+          if (z.deathTimer > 0) {
+            z.deathTimer -= delta;
+          } else {
+            z.deathOpacity -= delta * 1.5;
+            z.mesh.traverse(obj => {
+              if (obj instanceof THREE.Mesh) {
+                (obj.material as THREE.MeshStandardMaterial).opacity = z.deathOpacity;
+              }
+            });
+            if (z.deathOpacity <= 0) {
+              scene.remove(z.mesh);
+              z.isDead = true;
+              return false;
             }
-          });
-          if (z.deathOpacity <= 0) {
-            scene.remove(z.mesh);
-            z.isDead = true;
-            return false;
           }
           return true;
         }
