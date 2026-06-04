@@ -19,13 +19,9 @@ interface ZombieInstance {
   type: ZombieType;
   scoreValue: number;
   isDead: boolean;
-  isDying: boolean;
-  deathOpacity: number;
-  deathTimer: number; 
   lastAttackTime: number;
   leftArm: THREE.Group;
   rightArm: THREE.Group;
-  originalMaterials: Map<THREE.Mesh, THREE.Material>;
 }
 
 interface ParticleInstance {
@@ -271,10 +267,8 @@ export default function GameScene() {
       player.position.z + 70 + Math.random() * 50
     );
 
-    const originalMaterials = new Map<THREE.Mesh, THREE.Material>();
     group.traverse(obj => {
       if (obj instanceof THREE.Mesh) {
-        originalMaterials.set(obj, obj.material);
         obj.castShadow = true;
       }
     });
@@ -286,13 +280,9 @@ export default function GameScene() {
       type: 'Walker',
       scoreValue: Math.round(stats.scoreValue * multiplier),
       isDead: false,
-      isDying: false,
-      deathOpacity: 1.0,
-      deathTimer: 0.8, 
       lastAttackTime: 0,
       leftArm: leftArmGroup,
-      rightArm: rightArmGroup,
-      originalMaterials
+      rightArm: rightArmGroup
     };
 
     scene.add(group);
@@ -394,7 +384,7 @@ export default function GameScene() {
   };
 
   const handleShoot = () => {
-    const { raycaster, camera, zombies, weaponGroup, muzzleFlash, muzzleFlashMesh } = engineRef.current;
+    const { raycaster, camera, zombies, weaponGroup, muzzleFlash, muzzleFlashMesh, scene } = engineRef.current;
     const current = stateRef.current;
 
     if (performance.now() < current.nextShotTime) return;
@@ -417,7 +407,7 @@ export default function GameScene() {
     }, 60);
 
     raycaster.setFromCamera({ x: 0, y: 0 }, camera);
-    const targets = zombies.filter(z => !z.isDead && !z.isDying).map(z => z.mesh);
+    const targets = zombies.filter(z => !z.isDead).map(z => z.mesh);
     const intersects = raycaster.intersectObjects(targets, true);
 
     if (intersects.length > 0) {
@@ -430,22 +420,16 @@ export default function GameScene() {
       }
       
       const zombie = zombies.find(z => z.mesh === targetMesh);
-      if (zombie) {
+      if (zombie && !zombie.isDead) {
         const damage = current.weaponType === 'Shotgun' ? 3.5 : 1.0;
         zombie.hp -= damage;
         zombie.mesh.position.z += 1.2;
 
         setGameState(prev => ({ ...prev, shotsHit: prev.shotsHit + 1 }));
 
-        if (zombie.hp <= 0 && !zombie.isDying) {
-          zombie.isDying = true;
-          zombie.mesh.traverse(obj => {
-            if (obj instanceof THREE.Mesh) {
-              const original = obj.material as THREE.MeshStandardMaterial;
-              obj.material = original.clone();
-              obj.material.transparent = true;
-            }
-          });
+        if (zombie.hp <= 0) {
+          scene.remove(zombie.mesh);
+          zombie.isDead = true;
 
           setGameState(prev => ({ 
             ...prev, 
@@ -486,7 +470,6 @@ export default function GameScene() {
     scene.fog = new THREE.FogExp2(0x0a0505, 0.012);
     scene.add(engineRef.current.ambientLight);
 
-    // Face directly into the corridor (+Z)
     player.position.set(0, 4.2, 0); 
     player.rotation.y = Math.PI; 
     camera.rotation.order = 'YXZ';
@@ -530,11 +513,12 @@ export default function GameScene() {
     containerRef.current?.addEventListener('mousedown', () => {
       if (document.pointerLockElement !== containerRef.current) {
         try {
-          const promise = containerRef.current?.requestPointerLock();
-          if (promise && typeof (promise as any).catch === 'function') {
-            (promise as any).catch(() => {});
+          if (typeof containerRef.current?.requestPointerLock === 'function') {
+            containerRef.current.requestPointerLock();
           }
-        } catch (e) {}
+        } catch (e) {
+          // Gracefully handle security errors in restricted environments
+        }
       }
       handleShoot();
     });
@@ -594,7 +578,6 @@ export default function GameScene() {
       const keys = engineRef.current.keysPressed;
       const moveDir = new THREE.Vector3();
       
-      // Corrected movement vectors: use camera's world direction for forward
       const direction = new THREE.Vector3();
       camera.getWorldDirection(direction);
       direction.y = 0;
@@ -604,7 +587,7 @@ export default function GameScene() {
 
       if (keys['KeyW']) moveDir.add(direction);
       if (keys['KeyS']) moveDir.sub(direction);
-      if (keys['KeyA']) moveDir.add(lateral); // Corrected lateral based on getWorldDirection cross
+      if (keys['KeyA']) moveDir.add(lateral);
       if (keys['KeyD']) moveDir.sub(lateral);
 
       if (moveDir.length() > 0) {
@@ -640,25 +623,6 @@ export default function GameScene() {
 
       engineRef.current.zombies = engineRef.current.zombies.filter(z => {
         if (z.isDead) return false;
-
-        if (z.isDying) {
-          if (z.deathTimer > 0) {
-            z.deathTimer -= delta;
-          } else {
-            z.deathOpacity -= delta * 1.5;
-            z.mesh.traverse(obj => {
-              if (obj instanceof THREE.Mesh) {
-                (obj.material as THREE.MeshStandardMaterial).opacity = z.deathOpacity;
-              }
-            });
-            if (z.deathOpacity <= 0) {
-              scene.remove(z.mesh);
-              z.isDead = true;
-              return false;
-            }
-          }
-          return true;
-        }
 
         if (z.mesh.position.z <= current.wallZ) { scene.remove(z.mesh); return false; }
         const toPlayer = new THREE.Vector3().copy(player.position).sub(z.mesh.position);
@@ -708,7 +672,7 @@ export default function GameScene() {
     engineRef.current.zombies = [];
     engineRef.current.particles = [];
     player.position.set(0, 4.2, 0);
-    player.rotation.y = Math.PI; // Face +Z at start
+    player.rotation.y = Math.PI;
     camera.rotation.x = 0;
     
     weaponGroup.children.filter(child => child instanceof THREE.Group).forEach(child => weaponGroup.remove(child));
