@@ -196,15 +196,17 @@ export default function GameScene() {
     const scoreValue = Math.round(stats.scoreValue * multiplier);
 
     const group = new THREE.Group();
-    const skinMat = new THREE.MeshStandardMaterial({ color: 0x4a4a4a, roughness: 1.0, metalness: 0 }); 
+    // Scary zombie palette: desaturated, pale-gray skin, dark rag clothing
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0x6a6c6e, roughness: 1.0, metalness: 0 }); 
     const clothingMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 1.0 }); 
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 }); 
     const mouthMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
     const goreMat = new THREE.MeshStandardMaterial({ color: 0x440000, roughness: 0.8 }); 
 
+    // Distorted proportions for creepiness
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.44, 0.44), skinMat);
     head.position.y = 1.45;
-    head.rotation.z = 0.2;
+    head.rotation.z = (Math.random() - 0.5) * 0.5; // Unnatural head tilt
     group.add(head);
 
     const lEye = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.04), eyeMat);
@@ -214,24 +216,25 @@ export default function GameScene() {
     rEye.position.x = 0.12;
     group.add(rEye);
 
-    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.25, 0.04), mouthMat);
-    mouth.position.set(0, 1.3, 0.22);
+    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.04), mouthMat); // Larger screaming mouth
+    mouth.position.set(0, 1.25, 0.22);
     group.add(mouth);
 
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.8, 0.3), clothingMat);
     torso.position.y = 0.9;
     group.add(torso);
 
-    const wound = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 0.05), goreMat);
+    const wound = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.4, 0.05), goreMat);
     wound.position.set(0, 0.9, 0.16);
     group.add(wound);
 
-    const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.7), skinMat);
-    leftArm.position.set(-0.35, 1.15, 0.3);
+    // Asymmetric reachy arms
+    const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.9), skinMat);
+    leftArm.position.set(-0.35, 1.15, 0.4);
     group.add(leftArm);
 
-    const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 1.0), skinMat); 
-    rightArm.position.set(0.35, 1.1, 0.45);
+    const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 1.2), skinMat); // Extra long reaching arm
+    rightArm.position.set(0.35, 1.1, 0.55);
     group.add(rightArm);
 
     const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.15), clothingMat);
@@ -525,9 +528,9 @@ export default function GameScene() {
     scene.add(ambientLight);
 
     player.position.set(0, 2.8, 0);
-    player.rotation.y = 0;
+    player.rotation.y = Math.PI; // Corrected starting orientation to face forward (+Z)
     camera.rotation.order = 'YXZ';
-    camera.rotation.y = 0; // Fixed starting orientation to face forward
+    camera.rotation.y = 0; 
     player.add(camera);
     scene.add(player);
 
@@ -567,7 +570,13 @@ export default function GameScene() {
       const current = stateRef.current;
       if (!current.isGameActive || current.isGameOver) return;
       if (document.pointerLockElement !== containerRef.current) {
-        try { containerRef.current?.requestPointerLock(); } catch (err) {}
+        try { 
+          // Defensive check for sandboxed frames
+          const promise = containerRef.current?.requestPointerLock();
+          if (promise && 'catch' in promise) {
+            promise.catch(() => {});
+          }
+        } catch (err) {}
       }
       handleShoot();
     });
@@ -602,12 +611,9 @@ export default function GameScene() {
         if (nextStage === 3) {
           weaponType = 'AK47';
           shotCooldown = 120; // Faster fire rate for AK47
-          // Rebuild weapon model
-          weaponGroup.children.forEach(child => {
-             if (child instanceof THREE.Group && child !== engineRef.current.muzzleFlashMesh) {
-                weaponGroup.remove(child);
-             }
-          });
+          // Rebuild weapon model safely
+          const toRemove = weaponGroup.children.filter(child => child instanceof THREE.Group && child !== engineRef.current.muzzleFlashMesh);
+          toRemove.forEach(child => weaponGroup.remove(child));
           weaponGroup.add(createWeaponModel('AK47'));
         }
 
@@ -637,11 +643,11 @@ export default function GameScene() {
 
       const moveDir = new THREE.Vector3();
       const keys = engineRef.current.keysPressed;
-      // W,A,S,D now correctly move player in relative direction
-      if (keys['KeyW']) moveDir.z += 1;
-      if (keys['KeyS']) moveDir.z -= 1;
-      if (keys['KeyA']) moveDir.x += 1;
-      if (keys['KeyD']) moveDir.x -= 1;
+      // FPS movement recalibrated for forward-facing orientation
+      if (keys['KeyW']) moveDir.z -= 1;
+      if (keys['KeyS']) moveDir.z += 1;
+      if (keys['KeyA']) moveDir.x -= 1;
+      if (keys['KeyD']) moveDir.x += 1;
 
       if (moveDir.length() > 0) {
         moveDir.normalize().applyEuler(new THREE.Euler(0, player.rotation.y, 0));
@@ -728,15 +734,12 @@ export default function GameScene() {
     segments.forEach(s => { scene.remove(s.mesh); s.mesh.traverse(obj => { if (obj instanceof THREE.Mesh) { obj.geometry.dispose(); if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose()); else obj.material.dispose(); } }); });
     engineRef.current.segments = [];
     player.position.set(0, 2.8, 0);
-    player.rotation.y = 0;
+    player.rotation.y = Math.PI; // Corrected starting orientation
     camera.rotation.y = 0;
     
     // Reset weapon to standard
-    weaponGroup.children.forEach(child => {
-      if (child instanceof THREE.Group && child !== engineRef.current.muzzleFlashMesh) {
-         weaponGroup.remove(child);
-      }
-    });
+    const toRemove = weaponGroup.children.filter(child => child instanceof THREE.Group && child !== engineRef.current.muzzleFlashMesh);
+    toRemove.forEach(child => weaponGroup.remove(child));
     weaponGroup.add(createWeaponModel('Standard'));
 
     for (let i = 0; i < 4; i++) engineRef.current.segments.push(createSegment(i * SEGMENT_LENGTH));
