@@ -10,7 +10,7 @@ export interface ZombieStats {
 }
 
 export const ZOMBIE_CLASSES: Record<ZombieType, ZombieStats> = {
-  // Scales adjusted for roughly human height relative to the corridor dimensions
+  // Scales adjusted for roughly human height (eye-to-eye with player at 4.2m)
   Walker: { type: 'Walker', baseHp: 3, baseSpeed: 21.6, scoreValue: 10, scale: 3.2 },
   Runner: { type: 'Runner', baseHp: 2, baseSpeed: 38.4, scoreValue: 15, scale: 3.0 },
   Tank: { type: 'Tank', baseHp: 6, baseSpeed: 14.4, scoreValue: 50, scale: 4.5 },
@@ -69,7 +69,7 @@ export const INITIAL_GAME_STATE: GameState = {
   zombieDamageInterval: 1200,
   lastDamageTime: 0,
   nextShotTime: 0,
-  shotCooldown: 150, // Reduced from 200 for faster responsiveness
+  shotCooldown: 150, 
   lastSpawnTime: 0,
   wallZ: -30,
   wallBaseSpeed: 9.28, 

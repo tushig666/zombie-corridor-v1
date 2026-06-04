@@ -78,7 +78,7 @@ export default function GameScene() {
   useEffect(() => {
     const gunshotUrl = "https://www.myinstants.com/media/sounds/gsht-44263.mp3";
     const gPool: HTMLAudioElement[] = [];
-    for (let i = 0; i < 20; i++) { // Increased pool for automatic fire
+    for (let i = 0; i < 20; i++) { 
       const audio = new Audio(gunshotUrl);
       audio.load();
       gPool.push(audio);
@@ -216,13 +216,11 @@ export default function GameScene() {
     const muscleMat = new THREE.MeshStandardMaterial({ color: 0x4a0000, emissive: 0xff0000, emissiveIntensity: 0.8 }); 
     const eyeMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 5.0 });
 
-    // GORGON-CLASS MUTATION (TALLER SCALE)
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), skinMat);
     head.position.y = 1.35;
     head.position.z = 0.1;
     group.add(head);
 
-    // Red Eyes
     const leftEye = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.05), eyeMat);
     leftEye.position.set(-0.08, 0.05, 0.16);
     head.add(leftEye);
@@ -270,6 +268,7 @@ export default function GameScene() {
     rightLeg.position.x = 0.3;
     group.add(rightLeg);
 
+    // RESTORED CORRECT SCALE
     group.scale.setScalar(stats.scale);
     
     group.position.set(
@@ -303,8 +302,6 @@ export default function GameScene() {
 
   const createSegment = (z: number) => {
     const group = new THREE.Group();
-    
-    // V2 INDUSTRIAL BRUTALIST MATERIALS
     const floorMat = new THREE.MeshStandardMaterial({ color: 0x111215, roughness: 0.8, metalness: 0.8 });
     const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x15161a, roughness: 0.9, metalness: 0.2 });
     const wallMat = new THREE.MeshStandardMaterial({ color: 0x222429, roughness: 0.7, metalness: 0.5 });
@@ -527,15 +524,12 @@ export default function GameScene() {
     
     containerRef.current?.addEventListener('mousedown', () => {
       engineRef.current.isFiring = true;
-      if (document.pointerLockElement !== containerRef.current) {
-        try {
-          if (typeof containerRef.current?.requestPointerLock === 'function') {
-            const promise = containerRef.current.requestPointerLock();
-            if (promise && (promise as any).catch) {
-              (promise as any).catch(() => {});
-            }
-          }
-        } catch (e) {}
+      try {
+        if (typeof containerRef.current?.requestPointerLock === 'function') {
+          containerRef.current.requestPointerLock();
+        }
+      } catch (e) {
+        // Handle security errors silently
       }
       handleShoot();
     });
@@ -554,25 +548,30 @@ export default function GameScene() {
         return;
       }
 
-      // Progression logic
       const newTimeInStage = current.progression.timeInCurrentStage + delta;
       if (newTimeInStage >= current.progression.stageDurationThreshold) {
         const nextStage = current.progression.currentStage + 1;
         const multiplier = 1.0 + (nextStage - 1) * 0.25;
-        const spawnCap = Math.round(INITIAL_GAME_STATE.progression.spawnCap * (1.5 * nextStage));
-        const spawnInterval = Math.max(0.4, 3.0 / multiplier);
+        let spawnCap = Math.round(INITIAL_GAME_STATE.progression.spawnCap * (1.5 * nextStage));
+        let spawnInterval = Math.max(0.4, 3.0 / multiplier);
+
+        // STAGE 5+ DIFFICULTY SPIKE
+        if (nextStage >= 5) {
+          spawnInterval /= 2.0; 
+          spawnCap *= 2; 
+        }
 
         let weaponType = current.weaponType;
         let shotCooldown = current.shotCooldown;
         
         if (nextStage === 2) {
           weaponType = 'Shotgun';
-          shotCooldown = 500; // Reduced for responsiveness
+          shotCooldown = 500; 
           weaponGroup.children.filter(child => child instanceof THREE.Group).forEach(child => weaponGroup.remove(child));
           weaponGroup.add(createWeaponModel('Shotgun'));
         } else if (nextStage === 3) {
           weaponType = 'AK47';
-          shotCooldown = 85; // Faster auto-fire
+          shotCooldown = 85; 
           weaponGroup.children.filter(child => child instanceof THREE.Group).forEach(child => weaponGroup.remove(child));
           weaponGroup.add(createWeaponModel('AK47'));
         }
@@ -597,20 +596,18 @@ export default function GameScene() {
         setGameState(prev => ({ ...prev, progression: { ...prev.progression, timeInCurrentStage: newTimeInStage } }));
       }
 
-      // Automatic fire logic
       if (engineRef.current.isFiring && current.weaponType === 'AK47') {
         handleShoot();
       }
 
       const keys = engineRef.current.keysPressed;
-      const moveDir = new THREE.Vector3();
-      
       const direction = new THREE.Vector3();
       camera.getWorldDirection(direction);
       direction.y = 0;
       direction.normalize();
 
       const lateral = new THREE.Vector3().crossVectors(direction, camera.up).normalize();
+      const moveDir = new THREE.Vector3();
 
       if (keys['KeyW']) moveDir.add(direction);
       if (keys['KeyS']) moveDir.sub(direction);
@@ -650,13 +647,16 @@ export default function GameScene() {
 
       engineRef.current.zombies = engineRef.current.zombies.filter(z => {
         if (z.isDead) return false;
-
         if (z.mesh.position.z <= current.wallZ) { scene.remove(z.mesh); return false; }
+        
         const toPlayer = new THREE.Vector3().copy(player.position).sub(z.mesh.position);
         toPlayer.y = 0;
         const dist = toPlayer.length();
         toPlayer.normalize();
-        z.mesh.position.add(toPlayer.multiplyScalar(z.speed * delta));
+        
+        // STAGE 5+ SPEED BOOST
+        const moveSpeed = z.speed * (current.progression.currentStage >= 5 ? 1.5 : 1.0);
+        z.mesh.position.add(toPlayer.multiplyScalar(moveSpeed * delta));
         z.mesh.lookAt(player.position.x, 0, player.position.z);
 
         const wave = Math.sin(performance.now() * 0.005);
@@ -697,38 +697,27 @@ export default function GameScene() {
 
   const restartGame = () => {
     const { scene, zombies, player, camera, weaponGroup, particles, segments } = engineRef.current;
-    
     isGameOverTriggered.current = false;
     zombies.forEach(z => scene.remove(z.mesh));
     particles.forEach(p => scene.remove(p.mesh));
     segments.forEach(s => scene.remove(s.mesh));
-    
     engineRef.current.zombies = [];
     engineRef.current.particles = [];
     engineRef.current.segments = [];
-    
     player.position.set(0, 4.2, 0);
     player.rotation.y = Math.PI;
     camera.rotation.x = 0;
-    
     for (let i = 0; i < 4; i++) {
       engineRef.current.segments.push(createSegment(i * SEGMENT_LENGTH));
     }
-    
     weaponGroup.children.filter(child => child instanceof THREE.Group).forEach(child => weaponGroup.remove(child));
     weaponGroup.add(createWeaponModel('Standard'));
-
     if (bgMusicRef.current) { 
       bgMusicRef.current.currentTime = 0; 
       bgMusicRef.current.muted = isMutedRef.current;
       bgMusicRef.current.play().catch(() => {}); 
     }
-    
-    setGameState({ 
-      ...INITIAL_GAME_STATE, 
-      isGameActive: true, 
-      lastSpawnTime: performance.now() 
-    });
+    setGameState({ ...INITIAL_GAME_STATE, isGameActive: true, lastSpawnTime: performance.now() });
   };
 
   useEffect(() => { initEngine(); }, []);
@@ -737,13 +726,11 @@ export default function GameScene() {
     <div id="game-container" className={gameState.isGameActive && !gameState.isGameOver ? 'playing-active' : ''} ref={containerRef}>
       <audio ref={bgMusicRef} src="https://www.myinstants.com/media/sounds/hardcore-trance-8.mp3" loop style={{ display: 'none' }} />
       <div id="damage-flash" ref={flashRef} />
-      
       <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
         <button className="btn" onClick={toggleMute} style={{ fontSize: '0.8rem', padding: '5px 15px' }}>
           {isMuted ? 'UNMUTE [M]' : 'MUTE [M]'}
         </button>
       </div>
-
       {!gameState.isGameActive && !gameState.isGameOver && (
         <div id="start-screen">
           <h1>ZOMBIE CORRIDOR</h1>
@@ -757,16 +744,7 @@ export default function GameScene() {
           {gameState.weaponType !== 'Standard' && <div style={{ color: '#00ff66', fontSize: '1.5rem' }}>{gameState.weaponType.toUpperCase()} UNLOCKED</div>}
         </div>
       )}
-      {gameState.isGameOver && (
-        <GameOver 
-          state={gameState} 
-          onRestart={restartGame} 
-          onQuit={() => { 
-            isGameOverTriggered.current = false; 
-            setGameState(INITIAL_GAME_STATE); 
-          }} 
-        />
-      )}
+      {gameState.isGameOver && <GameOver state={gameState} onRestart={restartGame} onQuit={() => { isGameOverTriggered.current = false; setGameState(INITIAL_GAME_STATE); }} />}
     </div>
   );
 }
