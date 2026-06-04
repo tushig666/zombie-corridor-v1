@@ -19,6 +19,8 @@ interface ZombieInstance {
   type: ZombieType;
   scoreValue: number;
   isDead: boolean;
+  isDying: boolean;
+  deathOpacity: number;
   lastAttackTime: number;
   leftArm: THREE.Group;
   rightArm: THREE.Group;
@@ -66,7 +68,7 @@ export default function GameScene() {
     raycaster: new THREE.Raycaster(),
     wallGroup: new THREE.Group(),
     wallLight: new THREE.SpotLight(0xff003c, 8.0, 60),
-    ambientLight: new THREE.AmbientLight(0xffffff, 0.45),
+    ambientLight: new THREE.AmbientLight(0xffffff, 0.3),
   });
 
   const stateRef = useRef<GameState>(INITIAL_GAME_STATE);
@@ -137,29 +139,29 @@ export default function GameScene() {
 
   const createBloodSplatter = (position: THREE.Vector3) => {
     const { scene, particles } = engineRef.current;
-    const particleCount = 20;
-    const geometry = new THREE.BoxGeometry(0.15, 0.15, 0.15);
+    const particleCount = 25;
+    const geometry = new THREE.BoxGeometry(0.12, 0.12, 0.12);
     const material = new THREE.MeshStandardMaterial({ 
       color: 0x880000, 
       emissive: 0xff0000,
-      emissiveIntensity: 3.5,
+      emissiveIntensity: 4.0,
       transparent: true 
     });
 
     for (let i = 0; i < particleCount; i++) {
-      const mesh = new THREE.Mesh(geometry, material);
+      const mesh = new THREE.Mesh(geometry, material.clone());
       mesh.position.copy(position);
       
       const velocity = new THREE.Vector3(
-        (Math.random() - 0.5) * 8,
-        (Math.random() - 0.5) * 8 + 4,
-        (Math.random() - 0.5) * 8
+        (Math.random() - 0.5) * 10,
+        (Math.random() - 0.5) * 10 + 5,
+        (Math.random() - 0.5) * 10
       );
 
       particles.push({
         mesh,
         velocity,
-        life: 1.2
+        life: 1.0 + Math.random() * 0.5
       });
       scene.add(mesh);
     }
@@ -208,75 +210,59 @@ export default function GameScene() {
   const spawnZombie = () => {
     const { scene, player, zombies } = engineRef.current;
     const current = stateRef.current;
-    const stage = current.progression.currentStage;
-
-    let type: ZombieType;
-    const rand = Math.random();
-
-    if (stage === 1) type = 'Walker';
-    else if (stage === 2) type = rand < 0.7 ? 'Walker' : 'Runner';
-    else type = rand < 0.4 ? 'Walker' : (rand < 0.7 ? 'Runner' : 'Tank');
-
-    const stats = ZOMBIE_CLASSES[type];
+    const stats = ZOMBIE_CLASSES['Walker']; 
     const multiplier = current.progression.globalDifficultyMultiplier;
-
-    const speed = stats.baseSpeed * multiplier;
-    const hp = Math.round(stats.baseHp * multiplier);
-    const scoreValue = Math.round(stats.scoreValue * multiplier);
 
     const group = new THREE.Group();
     const skinMat = new THREE.MeshStandardMaterial({ color: 0x8a7a7a, roughness: 0.8 }); 
-    const muscleMat = new THREE.MeshStandardMaterial({ color: 0x4a0000, emissive: 0xff0000, emissiveIntensity: 0.5 }); 
+    const muscleMat = new THREE.MeshStandardMaterial({ color: 0x4a0000, emissive: 0xff0000, emissiveIntensity: 0.8 }); 
 
-    // Head (Recessed and small)
+    // Gorgon-Class Design: Hyper-muscular and asymmetrical
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), skinMat);
     head.position.y = 1.35;
     head.position.z = 0.1;
     group.add(head);
 
-    // Torso (Massive and bulky)
-    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.9, 0.5), skinMat);
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.1, 0.6), skinMat);
     torso.position.y = 0.85;
     group.add(torso);
     
-    // Muscle detail on torso
-    const gut = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.55), muscleMat);
+    const gut = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.65), muscleMat);
     gut.position.y = 0.7;
-    gut.position.z = 0.1;
+    gut.position.z = 0.15;
     group.add(gut);
 
-    // Mutated Right Arm (Massive blade-like claw)
+    // Mutated Right Arm (Blade Claw)
     const rightArmGroup = new THREE.Group();
-    const rArmBase = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.8), skinMat);
-    rArmBase.position.set(0, 0, 0.4);
-    const rArmClaw = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 1.2), muscleMat);
-    rArmClaw.position.set(0, -0.2, 1.2);
-    rArmClaw.rotation.x = 0.4;
-    rightArmGroup.add(rArmBase, rArmClaw);
-    rightArmGroup.position.set(0.55, 1.1, 0);
+    const rArmBase = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.9), skinMat);
+    rArmBase.position.set(0, 0, 0.45);
+    const rArmBlade = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.7, 1.4), muscleMat);
+    rArmBlade.position.set(0, -0.3, 1.4);
+    rArmBlade.rotation.x = 0.3;
+    rightArmGroup.add(rArmBase, rArmBlade);
+    rightArmGroup.position.set(0.65, 1.1, 0);
     group.add(rightArmGroup);
 
-    // Mutated Left Arm (Pincer-like tentacles)
+    // Mutated Left Arm (Pincer Pincers)
     const leftArmGroup = new THREE.Group();
-    const lArmBase = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.6), skinMat);
-    lArmBase.position.set(0, 0, 0.3);
-    const finger1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 1.0), muscleMat);
-    finger1.position.set(-0.1, 0.1, 1.0);
-    finger1.rotation.y = 0.2;
-    const finger2 = finger1.clone();
-    finger2.position.set(0.1, -0.1, 1.0);
-    finger2.rotation.y = -0.2;
-    leftArmGroup.add(lArmBase, finger1, finger2);
-    leftArmGroup.position.set(-0.55, 1.1, 0);
+    const lArmBase = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.7), skinMat);
+    lArmBase.position.set(0, 0, 0.35);
+    const pincer1 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 1.1), muscleMat);
+    pincer1.position.set(-0.15, 0.15, 1.1);
+    pincer1.rotation.y = 0.25;
+    const pincer2 = pincer1.clone();
+    pincer2.position.set(0.15, -0.15, 1.1);
+    pincer2.rotation.y = -0.25;
+    leftArmGroup.add(lArmBase, pincer1, pincer2);
+    leftArmGroup.position.set(-0.65, 1.1, 0);
     group.add(leftArmGroup);
 
-    // Thick Legs
-    const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.6, 0.3), skinMat);
-    leftLeg.position.set(-0.25, 0.3, 0);
+    const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.7, 0.4), skinMat);
+    leftLeg.position.set(-0.3, 0.35, 0);
     group.add(leftLeg);
     
     const rightLeg = leftLeg.clone();
-    rightLeg.position.x = 0.25;
+    rightLeg.position.x = 0.3;
     group.add(rightLeg);
 
     group.scale.setScalar(stats.scale);
@@ -284,7 +270,7 @@ export default function GameScene() {
     group.position.set(
       (Math.random() - 0.5) * (CORRIDOR_WIDTH - 4),
       0,
-      player.position.z + 65 + Math.random() * 45
+      player.position.z + 70 + Math.random() * 50
     );
 
     const originalMaterials = new Map<THREE.Mesh, THREE.Material>();
@@ -297,11 +283,13 @@ export default function GameScene() {
 
     const instance: ZombieInstance = {
       mesh: group,
-      hp,
-      speed,
-      type,
-      scoreValue,
+      hp: Math.round(stats.baseHp * multiplier),
+      speed: stats.baseSpeed * multiplier,
+      type: 'Walker',
+      scoreValue: Math.round(stats.scoreValue * multiplier),
       isDead: false,
+      isDying: false,
+      deathOpacity: 1.0,
       lastAttackTime: 0,
       leftArm: leftArmGroup,
       rightArm: rightArmGroup,
@@ -430,7 +418,7 @@ export default function GameScene() {
     }, 60);
 
     raycaster.setFromCamera({ x: 0, y: 0 }, camera);
-    const targets = zombies.filter(z => !z.isDead).map(z => z.mesh);
+    const targets = zombies.filter(z => !z.isDead && !z.isDying).map(z => z.mesh);
     const intersects = raycaster.intersectObjects(targets, true);
 
     if (intersects.length > 0) {
@@ -450,8 +438,17 @@ export default function GameScene() {
 
         setGameState(prev => ({ ...prev, shotsHit: prev.shotsHit + 1 }));
 
-        if (zombie.hp <= 0) {
-          zombie.isDead = true;
+        if (zombie.hp <= 0 && !zombie.isDying) {
+          zombie.isDying = true;
+          // Set materials to transparent for fade effect
+          zombie.mesh.traverse(obj => {
+            if (obj instanceof THREE.Mesh) {
+              const original = obj.material as THREE.MeshStandardMaterial;
+              obj.material = original.clone();
+              obj.material.transparent = true;
+            }
+          });
+
           setGameState(prev => ({ 
             ...prev, 
             score: prev.score + zombie.scoreValue,
@@ -460,7 +457,6 @@ export default function GameScene() {
               [zombie.type]: (prev.killsByType[zombie.type] || 0) + 1
             }
           }));
-          engineRef.current.scene.remove(zombie.mesh);
         }
       }
     }
@@ -493,7 +489,7 @@ export default function GameScene() {
     scene.add(engineRef.current.ambientLight);
 
     player.position.set(0, 4.2, 0); 
-    player.rotation.y = Math.PI; 
+    player.rotation.y = 0; 
     camera.rotation.order = 'YXZ';
     player.add(camera);
     scene.add(player);
@@ -539,7 +535,8 @@ export default function GameScene() {
             containerRef.current.requestPointerLock();
           }
         } catch (e) {
-          // Robust safety wrapper for restricted sandboxed environments
+          // Gracefully handle security errors in restricted environments
+          console.warn("Pointer lock could not be requested.");
         }
       }
       handleShoot();
@@ -600,7 +597,7 @@ export default function GameScene() {
       const keys = engineRef.current.keysPressed;
       const moveDir = new THREE.Vector3();
       
-      const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
+      const forward = new THREE.Vector3(0, 0, 1).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
       const right = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
 
       if (keys['KeyW']) moveDir.add(forward);
@@ -641,6 +638,22 @@ export default function GameScene() {
 
       engineRef.current.zombies = engineRef.current.zombies.filter(z => {
         if (z.isDead) return false;
+
+        if (z.isDying) {
+          z.deathOpacity -= delta * 0.8;
+          z.mesh.traverse(obj => {
+            if (obj instanceof THREE.Mesh) {
+              (obj.material as THREE.MeshStandardMaterial).opacity = z.deathOpacity;
+            }
+          });
+          if (z.deathOpacity <= 0) {
+            scene.remove(z.mesh);
+            z.isDead = true;
+            return false;
+          }
+          return true;
+        }
+
         if (z.mesh.position.z <= current.wallZ) { scene.remove(z.mesh); return false; }
         const toPlayer = new THREE.Vector3().copy(player.position).sub(z.mesh.position);
         toPlayer.y = 0;
@@ -649,7 +662,6 @@ export default function GameScene() {
         z.mesh.position.add(toPlayer.multiplyScalar(z.speed * delta));
         z.mesh.lookAt(player.position.x, 0, player.position.z);
 
-        // Sinusoidal mutated limb movement
         const wave = Math.sin(performance.now() * 0.005);
         z.rightArm.rotation.x = 0.2 + wave * 0.3;
         z.leftArm.rotation.x = -0.2 - wave * 0.3;
@@ -690,7 +702,7 @@ export default function GameScene() {
     engineRef.current.zombies = [];
     engineRef.current.particles = [];
     player.position.set(0, 4.2, 0);
-    player.rotation.y = Math.PI; 
+    player.rotation.y = 0; 
     camera.rotation.x = 0;
     
     weaponGroup.children.filter(child => child instanceof THREE.Group).forEach(child => weaponGroup.remove(child));
