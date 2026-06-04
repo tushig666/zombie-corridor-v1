@@ -46,6 +46,8 @@ export default function GameScene() {
   const isGameOverTriggered = useRef(false);
   const [gameState, setGameState] = useState<GameState>(INITIAL_GAME_STATE);
   const [distToWall, setDistToWall] = useState(20);
+  const [isMuted, setIsMuted] = useState(false);
+  const isMutedRef = useRef(false);
   
   const engineRef = useRef({
     scene: new THREE.Scene(),
@@ -96,7 +98,17 @@ export default function GameScene() {
     zombieSoundPoolRef.current = zPool;
   }, []);
 
+  const toggleMute = useCallback(() => {
+    const nextMuted = !isMutedRef.current;
+    isMutedRef.current = nextMuted;
+    setIsMuted(nextMuted);
+    if (bgMusicRef.current) {
+      bgMusicRef.current.muted = nextMuted;
+    }
+  }, []);
+
   const playGunshotSound = () => {
+    if (isMutedRef.current) return;
     const sound = gunshotPoolRef.current.find(a => a.paused || a.ended);
     if (sound) {
       sound.currentTime = 0;
@@ -105,6 +117,7 @@ export default function GameScene() {
   };
 
   const playZombieSound = () => {
+    if (isMutedRef.current) return;
     const sound = zombieSoundPoolRef.current.find(a => a.paused || a.ended);
     if (sound) {
       sound.currentTime = 0;
@@ -549,7 +562,10 @@ export default function GameScene() {
     createCollapseWall();
     for (let i = 0; i < 4; i++) segments.push(createSegment(i * SEGMENT_LENGTH));
 
-    const onKeyDown = (e: KeyboardEvent) => engineRef.current.keysPressed[e.code] = true;
+    const onKeyDown = (e: KeyboardEvent) => {
+      engineRef.current.keysPressed[e.code] = true;
+      if (e.code === 'KeyM') toggleMute();
+    };
     const onKeyUp = (e: KeyboardEvent) => engineRef.current.keysPressed[e.code] = false;
     const onMouseMove = (e: MouseEvent) => {
       if (!isGameOverTriggered.current) {
@@ -735,7 +751,11 @@ export default function GameScene() {
     for (let i = 0; i < 4; i++) engineRef.current.segments.push(createSegment(i * SEGMENT_LENGTH));
     ambientLight.intensity = 0.45;
     if (scene.fog instanceof THREE.FogExp2) scene.fog.density = 0.012;
-    if (bgMusicRef.current) { bgMusicRef.current.currentTime = 0; bgMusicRef.current.play().catch(() => {}); }
+    if (bgMusicRef.current) { 
+      bgMusicRef.current.currentTime = 0; 
+      bgMusicRef.current.muted = isMutedRef.current;
+      bgMusicRef.current.play().catch(() => {}); 
+    }
     setGameState({ ...INITIAL_GAME_STATE, isGameActive: true, lastSpawnTime: performance.now(), startTime: performance.now() });
   };
 
@@ -745,6 +765,18 @@ export default function GameScene() {
     <div id="game-container" className={gameState.isGameActive && !gameState.isGameOver ? 'playing-active' : ''} ref={containerRef}>
       <audio ref={bgMusicRef} src="https://www.myinstants.com/media/sounds/hardcore-trance-8.mp3" loop style={{ display: 'none' }} />
       <div id="damage-flash" ref={flashRef} />
+      
+      {/* Mute Button HUD */}
+      <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 100, pointerEvents: 'auto' }}>
+        <button 
+          className="btn" 
+          onClick={toggleMute} 
+          style={{ fontSize: '0.8rem', padding: '5px 15px', minWidth: '120px' }}
+        >
+          {isMuted ? 'UNMUTE [M]' : 'MUTE [M]'}
+        </button>
+      </div>
+
       {!gameState.isGameActive && !gameState.isGameOver && (
         <div id="start-screen">
           <h1>ZOMBIE CORRIDOR</h1>
@@ -758,6 +790,7 @@ export default function GameScene() {
                 <tr><td><span className="key-highlight">W, A, S, D</span></td><td>TACTICAL MOVEMENT</td></tr>
                 <tr><td><span className="key-highlight">MOUSE</span></td><td>AIMING RETICLE</td></tr>
                 <tr><td><span className="key-highlight">LEFT CLICK</span></td><td>ENGAGE FIREARM</td></tr>
+                <tr><td><span className="key-highlight">M</span></td><td>TOGGLE AUDIO MUTE</td></tr>
               </tbody>
             </table>
           </div>
