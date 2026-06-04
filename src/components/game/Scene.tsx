@@ -21,7 +21,7 @@ interface ZombieInstance {
   isDead: boolean;
   isDying: boolean;
   deathOpacity: number;
-  deathTimer: number; // For the delayed disappearance
+  deathTimer: number; 
   lastAttackTime: number;
   leftArm: THREE.Group;
   rightArm: THREE.Group;
@@ -288,7 +288,7 @@ export default function GameScene() {
       isDead: false,
       isDying: false,
       deathOpacity: 1.0,
-      deathTimer: 0.8, // Slightly longer visible death
+      deathTimer: 0.8, 
       lastAttackTime: 0,
       leftArm: leftArmGroup,
       rightArm: rightArmGroup,
@@ -533,9 +533,7 @@ export default function GameScene() {
           if (promise && typeof (promise as any).catch === 'function') {
             (promise as any).catch(() => {});
           }
-        } catch (e) {
-          // Silent catch for sandboxed environments
-        }
+        } catch (e) {}
       }
       handleShoot();
     });
