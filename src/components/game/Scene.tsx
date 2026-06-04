@@ -6,6 +6,8 @@ import * as THREE from 'three';
 import { GameState, INITIAL_GAME_STATE, ZOMBIE_CLASSES, ZombieType } from '@/lib/game-types';
 import HUD from './HUD';
 import GameOver from './GameOver';
+import { Slider } from '@/components/ui/slider';
+import { Label } from '@/components/ui/label';
 
 // Constants for v2 Environment
 const SEGMENT_LENGTH = 30;
@@ -81,6 +83,13 @@ export default function GameScene() {
   }, [gameState]);
 
   useEffect(() => {
+    // Dynamic volume updates for music
+    if (bgMusicRef.current) {
+      bgMusicRef.current.volume = gameState.musicVolume;
+    }
+  }, [gameState.musicVolume]);
+
+  useEffect(() => {
     // Definitive Weapon Audio
     const rifleUrl = "https://cdn.freesound.org/previews/855/855654_11861213-lq.mp3";
     const shotgunUrl = "https://cdn.freesound.org/previews/668/668353_11535496-lq.mp3";
@@ -128,7 +137,7 @@ export default function GameScene() {
 
     const sound = pool.find(a => a.paused || a.ended);
     if (sound) {
-      sound.volume = 0.8;
+      sound.volume = 0.8 * stateRef.current.sfxVolume;
       sound.currentTime = 0;
       sound.play().catch(() => {});
     }
@@ -139,7 +148,7 @@ export default function GameScene() {
     const sound = zombieSoundPoolRef.current.find(a => a.paused || a.ended);
     if (sound) {
       sound.currentTime = 0;
-      sound.volume = 0.5;
+      sound.volume = 0.5 * stateRef.current.sfxVolume;
       sound.play().catch(() => {});
     }
   };
@@ -542,15 +551,10 @@ export default function GameScene() {
     containerRef.current?.addEventListener('mousedown', () => {
       engineRef.current.isFiring = true;
       
-      // Robust guarded pointer lock request to prevent SecurityError in sandboxed environments
       if (typeof containerRef.current?.requestPointerLock === 'function') {
-        try {
-          const promise = containerRef.current.requestPointerLock() as any;
-          if (promise && typeof promise.catch === 'function') {
-            promise.catch(() => { /* Environment restricted - silent fail */ });
-          }
-        } catch (e) {
-          /* Environment restricted - silent fail */
+        const promise = containerRef.current.requestPointerLock() as any;
+        if (promise && typeof promise.catch === 'function') {
+          promise.catch(() => {});
         }
       }
       handleShoot();
@@ -577,7 +581,6 @@ export default function GameScene() {
         let spawnCap = Math.round(INITIAL_GAME_STATE.progression.spawnCap * (1.5 * nextStage));
         let spawnInterval = Math.max(0.4, 3.0 / multiplier);
 
-        // STAGE 5+ DIFFICULTY SPIKE
         if (nextStage >= 5) {
           spawnInterval /= 2.0; 
           spawnCap *= 2; 
@@ -676,7 +679,6 @@ export default function GameScene() {
         const dist = toPlayer.length();
         toPlayer.normalize();
         
-        // STAGE 5+ SPEED BOOST
         const moveSpeed = z.speed * (current.progression.currentStage >= 5 ? 1.5 : 1.0);
         z.mesh.position.add(toPlayer.multiplyScalar(moveSpeed * delta));
         z.mesh.lookAt(player.position.x, 0, player.position.z);
@@ -736,10 +738,11 @@ export default function GameScene() {
     weaponGroup.add(createWeaponModel('Standard'));
     if (bgMusicRef.current) { 
       bgMusicRef.current.currentTime = 0; 
+      bgMusicRef.current.volume = gameState.musicVolume;
       bgMusicRef.current.muted = isMutedRef.current;
       bgMusicRef.current.play().catch(() => {}); 
     }
-    setGameState({ ...INITIAL_GAME_STATE, isGameActive: true, lastSpawnTime: performance.now() });
+    setGameState(prev => ({ ...INITIAL_GAME_STATE, musicVolume: prev.musicVolume, sfxVolume: prev.sfxVolume, isGameActive: true, lastSpawnTime: performance.now() }));
   };
 
   useEffect(() => { initEngine(); }, []);
@@ -756,7 +759,36 @@ export default function GameScene() {
       {!gameState.isGameActive && !gameState.isGameOver && (
         <div id="start-screen">
           <h1>ZOMBIE CORRIDOR</h1>
-          <button className="btn" onClick={restartGame}>ENTER LOCKDOWN ZONE</button>
+          <button className="btn mb-8" onClick={restartGame}>ENTER LOCKDOWN ZONE</button>
+          
+          <div className="w-full max-w-xs space-y-6 mt-8 p-6 bg-black/40 border border-red-900/30 rounded-lg">
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <Label className="text-red-500 uppercase tracking-widest text-[0.6rem] font-bold">Background Music</Label>
+                <span className="text-red-500 text-[0.6rem] tabular-nums">{Math.round(gameState.musicVolume * 100)}%</span>
+              </div>
+              <Slider 
+                value={[gameState.musicVolume * 100]} 
+                max={100} 
+                step={1}
+                onValueChange={([val]) => setGameState(prev => ({ ...prev, musicVolume: val / 100 }))}
+                className="cursor-pointer"
+              />
+            </div>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <Label className="text-red-500 uppercase tracking-widest text-[0.6rem] font-bold">Combat FX</Label>
+                <span className="text-red-500 text-[0.6rem] tabular-nums">{Math.round(gameState.sfxVolume * 100)}%</span>
+              </div>
+              <Slider 
+                value={[gameState.sfxVolume * 100]} 
+                max={100} 
+                step={1}
+                onValueChange={([val]) => setGameState(prev => ({ ...prev, sfxVolume: val / 100 }))}
+                className="cursor-pointer"
+              />
+            </div>
+          </div>
         </div>
       )}
       {gameState.isGameActive && <HUD state={gameState} distToWall={distToWall} />}

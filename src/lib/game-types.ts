@@ -55,6 +55,9 @@ export interface GameState {
   showAlert: boolean;
   // Weapon
   weaponType: 'Standard' | 'Shotgun' | 'AK47';
+  // Audio Settings
+  musicVolume: number;
+  sfxVolume: number;
 }
 
 export const INITIAL_GAME_STATE: GameState = {
@@ -87,6 +90,8 @@ export const INITIAL_GAME_STATE: GameState = {
   stageTitle: 'CONTAINMENT BREACH',
   showAlert: false,
   weaponType: 'Standard',
+  musicVolume: 0.4,
+  sfxVolume: 0.6,
   progression: {
     currentStage: 1,
     timeInCurrentStage: 0,
