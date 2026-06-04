@@ -231,7 +231,7 @@ export default function GameScene() {
       lamp.position.set(0, CORRIDOR_HEIGHT - 0.05, i);
       group.add(lamp);
 
-      const light = new THREE.PointLight(0xff3333, 2.0, 18);
+      const light = new THREE.PointLight(0xff3333, 4.0, 20); // Increased intensity for visibility
       light.position.set(0, CORRIDOR_HEIGHT - 0.5, i);
       group.add(light);
     }
@@ -334,7 +334,9 @@ export default function GameScene() {
     
     setGameState(prev => ({ ...prev, isGameOver: true, isGameActive: false }));
     try {
-      document.exitPointerLock();
+      if (document.pointerLockElement) {
+        document.exitPointerLock();
+      }
     } catch(e) {}
 
     const survivalTime = Math.floor((performance.now() - finalState.startTime) / 1000);
@@ -366,9 +368,9 @@ export default function GameScene() {
     engineRef.current.renderer = renderer;
 
     scene.background = new THREE.Color(0x0a0505);
-    scene.fog = new THREE.FogExp2(0x0a0505, 0.015);
+    scene.fog = new THREE.FogExp2(0x0a0505, 0.01); // Reduced fog for better visibility
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.15);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.25); // Increased ambient light
     scene.add(ambient);
 
     player.position.set(0, 1.8, 0);
@@ -393,7 +395,8 @@ export default function GameScene() {
     const onKeyDown = (e: KeyboardEvent) => engineRef.current.keysPressed[e.code] = true;
     const onKeyUp = (e: KeyboardEvent) => engineRef.current.keysPressed[e.code] = false;
     const onMouseMove = (e: MouseEvent) => {
-      if (document.pointerLockElement === containerRef.current) {
+      // Even if pointer lock is blocked, we try to support movement if the user has clicked inside
+      if (document.pointerLockElement === containerRef.current || !gameState.isGameOver) {
         player.rotation.y -= e.movementX * 0.002;
         camera.rotation.x -= e.movementY * 0.002;
         camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x));
@@ -408,10 +411,16 @@ export default function GameScene() {
       const current = stateRef.current;
       if (!current.isGameActive || current.isGameOver) return;
 
+      // Wrap in try-catch to handle sandboxed environment pointer lock restriction
       if (document.pointerLockElement !== containerRef.current) {
         try {
-          containerRef.current?.requestPointerLock();
-        } catch (err) {}
+          const promise = containerRef.current?.requestPointerLock() as any;
+          if (promise && typeof promise.catch === 'function') {
+            promise.catch(() => {}); // Catch promise rejection if it's returned
+          }
+        } catch (err) {
+          // Silently fail if pointer lock is blocked by browser security/sandbox
+        }
       }
       handleShoot();
     });
@@ -637,3 +646,4 @@ export default function GameScene() {
     </div>
   );
 }
+
