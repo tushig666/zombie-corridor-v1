@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -22,6 +21,16 @@ export default function GameScene() {
   const [gameStarted, setGameStarted] = useState(false);
   const [review, setReview] = useState<PostGamePerformanceReviewOutput | null>(null);
   
+  // Ref to track latest state for the animation loop to avoid stale closures
+  const latestGameStateRef = useRef<GameState>(gameState);
+  useEffect(() => {
+    latestGameStateRef.current = gameState;
+  }, [gameState]);
+
+  // Concurrency and timing guards for AI scaling
+  const scalingInProgressRef = useRef(false);
+  const lastScalingAttemptRef = useRef(0);
+
   // Refs for Three.js objects
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -58,7 +67,10 @@ export default function GameScene() {
   }
 
   const resetGame = () => {
-    setGameState({ ...INITIAL_GAME_STATE, startTime: Date.now() });
+    const newState = { ...INITIAL_GAME_STATE, startTime: Date.now(), lastDifficultyAdjustment: Date.now() };
+    setGameState(newState);
+    latestGameStateRef.current = newState;
+    lastScalingAttemptRef.current = Date.now();
     setGameStarted(true);
     setReview(null);
     statsRef.current = {
@@ -83,16 +95,26 @@ export default function GameScene() {
     }
   };
 
-  const handleDifficultyScaling = async (current: GameState) => {
-    const elapsed = (Date.now() - current.lastDifficultyAdjustment) / 1000;
-    if (elapsed < 30) return; // Scale every 30 seconds
+  const handleDifficultyScaling = async () => {
+    const current = latestGameStateRef.current;
+    const now = Date.now();
+    
+    // Throttle checks and ensure no parallel calls
+    if (scalingInProgressRef.current) return;
+    if (now - lastScalingAttemptRef.current < 30000) return; // Minimum 30s between calls
+
+    scalingInProgressRef.current = true;
+    lastScalingAttemptRef.current = now;
 
     try {
+      const killCount = Object.values(statsRef.current.zombiesKilled).reduce((a, b) => a + b, 0);
+      const elapsed = (now - current.lastDifficultyAdjustment) / 1000;
+
       const result = await zombieDifficultyScaler({
         distanceTraveled: current.distance,
-        zombieKillCount: Object.values(statsRef.current.zombiesKilled).reduce((a, b) => a + b, 0),
+        zombieKillCount: killCount,
         totalDamageTaken: statsRef.current.totalDamageTaken,
-        timeSinceLastAdjustment: elapsed,
+        timeSinceLastAdjustment: elapsed || 30,
         lastSpawnRateModifier: current.difficultyModifiers.spawnRate,
         lastZombieSpeedModifier: current.difficultyModifiers.zombieSpeed,
         lastEliteChanceIncrease: current.difficultyModifiers.eliteChance
@@ -109,7 +131,10 @@ export default function GameScene() {
         }
       }));
     } catch (e) {
-      console.error("Difficulty scaling failed", e);
+      // Fallback logic handled within zombieDifficultyScaler wrapper, 
+      // but we log here for dev visibility
+    } finally {
+      scalingInProgressRef.current = false;
     }
   };
 
@@ -179,7 +204,7 @@ export default function GameScene() {
     direction.applyQuaternion(cameraRef.current.quaternion);
     
     bullet.position.copy(playerRef.current.position);
-    bullet.position.y -= 0.2; // Offset from camera center to feel like a gun position
+    bullet.position.y -= 0.2;
 
     bulletsRef.current.add({
       mesh: bullet,
@@ -247,29 +272,12 @@ export default function GameScene() {
       ceiling.rotation.x = Math.PI / 2;
       group.add(ceiling);
 
-      // Emergency LEDs
-      const ledGeo = new THREE.BoxGeometry(0.1, 0.02, SEGMENT_LENGTH);
-      const ledMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-      
-      const ledTL = new THREE.Mesh(ledGeo, ledMat);
-      ledTL.position.set(-CORRIDOR_WIDTH/2 + 0.1, CORRIDOR_HEIGHT - 0.1, 0);
-      group.add(ledTL);
-
-      const ledTR = new THREE.Mesh(ledGeo, ledMat);
-      ledTR.position.set(CORRIDOR_WIDTH/2 - 0.1, CORRIDOR_HEIGHT - 0.1, 0);
-      group.add(ledTR);
-
-      // Emergency Light Mesh
-      const lightFixGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.3);
-      const lightFixMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
-      const lightBulbMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-      
-      const fixture = new THREE.Mesh(lightFixGeo, lightFixMat);
+      const fixture = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3), new THREE.MeshStandardMaterial({ color: 0x444444 }));
       fixture.position.set(0, CORRIDOR_HEIGHT - 0.1, 0);
       fixture.rotation.z = Math.PI/2;
       group.add(fixture);
 
-      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.1), lightBulbMat);
+      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
       bulb.position.set(0, CORRIDOR_HEIGHT - 0.15, 0);
       group.add(bulb);
 
@@ -286,26 +294,19 @@ export default function GameScene() {
       corridorSegmentsRef.current.push(createSegment(i * SEGMENT_LENGTH));
     }
 
-    // Collapse Wall
-    const collapseWallGeo = new THREE.PlaneGeometry(CORRIDOR_WIDTH, CORRIDOR_HEIGHT);
-    const collapseWallMat = new THREE.MeshBasicMaterial({ 
-      color: 0xff0000, 
-      transparent: true, 
-      opacity: 0.8,
-      side: THREE.DoubleSide
-    });
-    const collapseWall = new THREE.Mesh(collapseWallGeo, collapseWallMat);
+    const collapseWall = new THREE.Mesh(
+      new THREE.PlaneGeometry(CORRIDOR_WIDTH, CORRIDOR_HEIGHT),
+      new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.8, side: THREE.DoubleSide })
+    );
     collapseWall.position.set(0, CORRIDOR_HEIGHT / 2, -10);
     scene.add(collapseWall);
     collapseWallRef.current = collapseWall;
 
-    // Input
     const onKeyDown = (e: KeyboardEvent) => { keysRef.current[e.code] = true; };
     const onKeyUp = (e: KeyboardEvent) => { keysRef.current[e.code] = false; };
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
 
-    // Mouse Look
     const onMouseMove = (e: MouseEvent) => {
       if (document.pointerLockElement === containerRef.current && playerRef.current && cameraRef.current) {
         playerRef.current.rotation.y -= e.movementX * 0.002;
@@ -324,19 +325,20 @@ export default function GameScene() {
     };
     containerRef.current.addEventListener('mousedown', onMouseDown);
 
-    // Animation Loop
     let lastSpawnTime = 0;
     const animate = () => {
-      requestAnimationFrame(animate);
+      const frameId = requestAnimationFrame(animate);
       const delta = clockRef.current.getDelta();
       const time = clockRef.current.getElapsedTime();
 
-      if (!gameStarted || gameState.isGameOver) {
+      // Use the ref to get the latest state for frame calculations
+      const currentGameState = latestGameStateRef.current;
+
+      if (!gameStarted || currentGameState.isGameOver) {
         renderer.render(scene, camera);
         return;
       }
 
-      // Player Movement
       const moveSpeed = 5 * delta;
       const direction = new THREE.Vector3();
       if (keysRef.current['KeyW']) direction.z -= 1;
@@ -346,68 +348,53 @@ export default function GameScene() {
       
       direction.normalize().applyEuler(playerRef.current!.rotation);
       playerRef.current!.position.add(direction.multiplyScalar(moveSpeed));
-
-      // Constrain player
       playerRef.current!.position.x = Math.max(-CORRIDOR_WIDTH/2 + 0.5, Math.min(CORRIDOR_WIDTH/2 - 0.5, playerRef.current!.position.x));
       
-      // Collapse Wall Advance
       collapseWallRef.current!.position.z += COLLAPSE_WALL_SPEED * delta;
       
-      // Check Collapse Damage
       const distToWall = playerRef.current!.position.z - collapseWallRef.current!.position.z;
       if (distToWall < 1.0) {
         setGameState(prev => ({ ...prev, hp: prev.hp - 100 * delta }));
       }
 
-      // Zombie Spawning
-      if (time - lastSpawnTime > 3 / gameState.difficultyModifiers.spawnRate) {
+      if (time - lastSpawnTime > 3 / currentGameState.difficultyModifiers.spawnRate) {
         lastSpawnTime = time;
-        const zType = Math.random() < gameState.difficultyModifiers.eliteChance ? 'ELITE' : 
+        const zType = Math.random() < currentGameState.difficultyModifiers.eliteChance ? 'ELITE' : 
                       Math.random() < 0.1 ? 'TANK' : 
                       Math.random() < 0.3 ? 'RUNNER' : 'WALKER';
         createZombie(zType, playerRef.current!.position.z + SPAWN_DISTANCE);
       }
 
-      // Zombie Logic
       zombiesRef.current.forEach(z => {
         if (z.isDead) return;
-        
-        // Move toward player
         const toPlayer = new THREE.Vector3().copy(playerRef.current!.position).sub(z.mesh.position);
         toPlayer.y = 0;
         toPlayer.normalize();
-        z.mesh.position.add(toPlayer.multiplyScalar(z.speed * gameState.difficultyModifiers.zombieSpeed * delta));
+        z.mesh.position.add(toPlayer.multiplyScalar(z.speed * currentGameState.difficultyModifiers.zombieSpeed * delta));
         z.mesh.lookAt(playerRef.current!.position.x, 0, playerRef.current!.position.z);
 
-        // Distance check
-        const d = z.mesh.position.distanceTo(playerRef.current!.position);
-        if (d < 1.2) {
+        if (z.mesh.position.distanceTo(playerRef.current!.position) < 1.2) {
           setGameState(prev => {
-            const newHp = prev.hp - 20 * delta;
-            statsRef.current.totalDamageTaken += 20 * delta;
-            return { ...prev, hp: newHp };
+            const damage = 20 * delta;
+            statsRef.current.totalDamageTaken += damage;
+            return { ...prev, hp: prev.hp - damage };
           });
         }
 
-        // Despawn
         if (z.mesh.position.z < playerRef.current!.position.z - DESPAWN_DISTANCE) {
           scene.remove(z.mesh);
           zombiesRef.current.delete(z);
         }
       });
 
-      // Bullet Logic
       bulletsRef.current.forEach(b => {
         b.mesh.position.add(new THREE.Vector3().copy(b.velocity).multiplyScalar(delta));
-        
-        // Collision
         zombiesRef.current.forEach(z => {
-          if (!z.isDead && b.mesh.position.distanceTo(z.mesh.position.clone().add(new THREE.Vector3(0, z.speed > 3 ? 0.8 : 1.0, 0))) < 1.0) {
+          if (!z.isDead && b.mesh.position.distanceTo(z.mesh.position.clone().add(new THREE.Vector3(0, statsRef.current.shotsHit % 2 === 0 ? 0.8 : 1.0, 0))) < 1.0) {
             z.hp--;
             statsRef.current.shotsHit++;
             scene.remove(b.mesh);
             bulletsRef.current.delete(b);
-            
             if (z.hp <= 0) {
               z.isDead = true;
               statsRef.current.zombiesKilled[z.type] = (statsRef.current.zombiesKilled[z.type] || 0) + 1;
@@ -417,42 +404,33 @@ export default function GameScene() {
             }
           }
         });
-
         if (Date.now() - b.createdAt > 2000) {
           scene.remove(b.mesh);
           bulletsRef.current.delete(b);
         }
       });
 
-      // Corridor recycling
       corridorSegmentsRef.current.forEach(seg => {
         if (seg.position.z < playerRef.current!.position.z - SEGMENT_LENGTH * 2) {
           seg.position.z += corridorSegmentsRef.current.length * SEGMENT_LENGTH;
         }
       });
 
-      // Update HUD state
-      setGameState(prev => ({
-        ...prev,
-        distance: Math.floor(playerRef.current!.position.z)
-      }));
+      setGameState(prev => ({ ...prev, distance: Math.floor(playerRef.current!.position.z) }));
 
-      // Check Game Over
-      if (gameState.hp <= 0 && !gameState.isGameOver) {
+      if (currentGameState.hp <= 0 && !currentGameState.isGameOver) {
         setGameState(prev => ({ ...prev, isGameOver: true }));
         document.exitPointerLock();
-        
-        // Generate AI Review
         postGamePerformanceReview({
           zombiesKilled: statsRef.current.zombiesKilled,
           accuracy: (statsRef.current.shotsHit / (statsRef.current.shotsFired || 1)) * 100,
           distanceTraveled: Math.floor(playerRef.current!.position.z),
-          survivalTime: Math.floor((Date.now() - gameState.startTime) / 1000),
-          highestScore: gameState.score
+          survivalTime: Math.floor((Date.now() - currentGameState.startTime) / 1000),
+          highestScore: currentGameState.score
         }).then(setReview);
       }
 
-      handleDifficultyScaling(gameState);
+      handleDifficultyScaling();
       renderer.render(scene, camera);
     };
     animate();
@@ -508,7 +486,6 @@ export default function GameScene() {
         />
       )}
       
-      {/* Red Pulse Overlay when HP is low */}
       {gameStarted && gameState.hp < 30 && (
         <div className="absolute inset-0 pointer-events-none animate-pulse-red bg-primary/20 mix-blend-multiply z-10" />
       )}

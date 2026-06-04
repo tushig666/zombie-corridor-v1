@@ -30,7 +30,17 @@ const ZombieDifficultyScalerOutputSchema = z.object({
 export type ZombieDifficultyScalerOutput = z.infer<typeof ZombieDifficultyScalerOutputSchema>;
 
 export async function zombieDifficultyScaler(input: ZombieDifficultyScalerInput): Promise<ZombieDifficultyScalerOutput> {
-  return zombieDifficultyScalerFlow(input);
+  try {
+    return await zombieDifficultyScalerFlow(input);
+  } catch (error) {
+    // Return a neutral fallback if the AI service is unavailable or quota is exceeded
+    return {
+      spawnRateModifierAdjustment: 1.0,
+      zombieSpeedModifierAdjustment: 1.0,
+      eliteZombieChanceIncreaseAdjustment: 0.0,
+      justification: "System stabilizer active: Maintaining current difficulty due to high facility load."
+    };
+  }
 }
 
 const prompt = ai.definePrompt({
