@@ -9,7 +9,7 @@ import GameOver from './GameOver';
 
 // Constants
 const SEGMENT_LENGTH = 30;
-const CORRIDOR_WIDTH = 12; // Increased width as requested
+const CORRIDOR_WIDTH = 12; // Wider corridor as requested
 const CORRIDOR_HEIGHT = 13.5; // 1.5x scale (9 * 1.5 = 13.5)
 
 interface ZombieInstance {
@@ -76,7 +76,6 @@ export default function GameScene() {
   }, [gameState]);
 
   useEffect(() => {
-    // Audio pre-loading
     const gunshotUrl = "https://www.myinstants.com/media/sounds/gsht-44263.mp3";
     const gPool: HTMLAudioElement[] = [];
     for (let i = 0; i < 15; i++) {
@@ -138,11 +137,12 @@ export default function GameScene() {
 
   const createBloodSplatter = (position: THREE.Vector3) => {
     const { scene, particles } = engineRef.current;
-    const particleCount = 12;
-    const geometry = new THREE.BoxGeometry(0.15, 0.15, 0.15);
+    const particleCount = 18;
+    const geometry = new THREE.BoxGeometry(0.12, 0.12, 0.12);
     const material = new THREE.MeshStandardMaterial({ 
-      color: 0x880000, 
-      emissive: 0x440000,
+      color: 0xff0000, 
+      emissive: 0xaa0000,
+      emissiveIntensity: 2.0,
       transparent: true 
     });
 
@@ -151,9 +151,9 @@ export default function GameScene() {
       mesh.position.copy(position);
       
       const velocity = new THREE.Vector3(
-        (Math.random() - 0.5) * 5,
-        (Math.random() - 0.5) * 5 + 2,
-        (Math.random() - 0.5) * 5
+        (Math.random() - 0.5) * 7,
+        (Math.random() - 0.5) * 7 + 3,
+        (Math.random() - 0.5) * 7
       );
 
       particles.push({
@@ -169,6 +169,7 @@ export default function GameScene() {
     const group = new THREE.Group();
     const metalMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.9, roughness: 0.1 });
     const woodMat = new THREE.MeshStandardMaterial({ color: 0x3d2b1f, roughness: 0.9 });
+    const glowMat = new THREE.MeshStandardMaterial({ color: 0xff003c, emissive: 0xff003c, emissiveIntensity: 2.0 });
 
     if (type === 'Standard') {
       const body = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.2, 0.6), metalMat);
@@ -177,27 +178,29 @@ export default function GameScene() {
       barrel.position.set(0, 0.05, 0.4);
       group.add(body, barrel);
     } else if (type === 'Shotgun') {
-      const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.25, 0.7), metalMat);
-      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.8), metalMat);
+      const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.28, 0.8), metalMat);
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.9), metalMat);
       barrel.rotation.x = Math.PI / 2;
-      barrel.position.set(0, 0.05, 0.5);
-      const pump = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.3), metalMat);
-      pump.position.set(0, -0.1, 0.4);
-      group.add(receiver, barrel, pump);
+      barrel.position.set(0, 0.08, 0.6);
+      const pump = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.15, 0.35), metalMat);
+      pump.position.set(0, -0.1, 0.5);
+      const railGlow = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.6), glowMat);
+      railGlow.position.set(0, 0.22, 0.1);
+      group.add(receiver, barrel, pump, railGlow);
     } else if (type === 'AK47') {
-      const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.22, 0.8), metalMat);
-      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.0), metalMat);
+      const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.25, 1.0), metalMat);
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.2), metalMat);
       barrel.rotation.x = Math.PI / 2;
-      barrel.position.set(0, 0.05, 0.7);
-      const mag = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.4, 0.2), metalMat);
-      mag.position.set(0, -0.25, 0.2);
-      mag.rotation.x = -0.2;
-      const stock = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.3, 0.5), woodMat);
-      stock.position.set(0, -0.05, -0.5);
+      barrel.position.set(0, 0.08, 0.9);
+      const mag = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.45, 0.25), metalMat);
+      mag.position.set(0, -0.3, 0.2);
+      mag.rotation.x = -0.3;
+      const stock = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.35, 0.6), woodMat);
+      stock.position.set(0, -0.05, -0.6);
       group.add(receiver, barrel, mag, stock);
     }
 
-    group.position.set(0.4, -0.3, -0.8);
+    group.position.set(0.4, -0.35, -0.8);
     group.castShadow = true;
     return group;
   };
@@ -225,14 +228,17 @@ export default function GameScene() {
     const skinMat = new THREE.MeshStandardMaterial({ color: 0x6a6c6e }); 
     const clothingMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a }); 
 
+    // Head
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), skinMat);
     head.position.y = 1.45;
     group.add(head);
 
+    // Torso
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.8, 0.3), clothingMat);
     torso.position.y = 0.9;
     group.add(torso);
 
+    // Arms
     const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.8), skinMat);
     leftArm.position.set(-0.35, 1.1, 0.4);
     group.add(leftArm);
@@ -241,6 +247,7 @@ export default function GameScene() {
     rightArm.position.x = 0.35;
     group.add(rightArm);
 
+    // Legs
     const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.6, 0.18), clothingMat);
     leftLeg.position.set(-0.18, 0.3, 0);
     group.add(leftLeg);
@@ -249,13 +256,12 @@ export default function GameScene() {
     rightLeg.position.x = 0.18;
     group.add(rightLeg);
 
-    // Apply the 1.5x scale
     group.scale.setScalar(stats.scale);
     
     group.position.set(
-      (Math.random() - 0.5) * (CORRIDOR_WIDTH - 2.5),
+      (Math.random() - 0.5) * (CORRIDOR_WIDTH - 3),
       0,
-      player.position.z + 65 + Math.random() * 40
+      player.position.z + 60 + Math.random() * 50
     );
 
     const originalMaterials = new Map<THREE.Mesh, THREE.Material>();
@@ -312,6 +318,7 @@ export default function GameScene() {
     rWall.position.x = CORRIDOR_WIDTH / 2 + 0.1;
     group.add(rWall);
 
+    // Pillars & Beams
     for (let i = 0; i <= SEGMENT_LENGTH; i += 6) {
       const pZ = i - SEGMENT_LENGTH / 2;
       const lPillar = new THREE.Mesh(new THREE.BoxGeometry(0.4, CORRIDOR_HEIGHT, 0.6), pillarMat);
@@ -327,6 +334,7 @@ export default function GameScene() {
       group.add(beam);
     }
 
+    // Corner LED Rails
     const railGeo = new THREE.BoxGeometry(0.08, 0.08, SEGMENT_LENGTH);
     const rail1 = new THREE.Mesh(railGeo, ledMat);
     rail1.position.set(-CORRIDOR_WIDTH / 2 + 0.04, 0.04, 0);
@@ -344,13 +352,14 @@ export default function GameScene() {
     rail4.position.x = CORRIDOR_WIDTH / 2 - 0.04;
     group.add(rail4);
 
+    // Ceiling Lights
     for (let i = 5; i < SEGMENT_LENGTH; i += 10) {
       const lZ = i - SEGMENT_LENGTH / 2;
-      const lamp = new THREE.Mesh(new THREE.BoxGeometry(1, 0.1, 1), lampMat);
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 1.2), lampMat);
       lamp.position.set(0, CORRIDOR_HEIGHT - 0.05, lZ);
       group.add(lamp);
 
-      const light = new THREE.PointLight(0xff0000, 15.0, 20);
+      const light = new THREE.PointLight(0xff0000, 18.0, 25);
       light.position.set(0, CORRIDOR_HEIGHT - 1.0, lZ);
       group.add(light);
     }
@@ -363,14 +372,13 @@ export default function GameScene() {
 
   const createCollapseWall = () => {
     const { wallGroup, scene } = engineRef.current;
-    // Massive height for the collapse wall (1.5x)
-    const wallGeo = new THREE.PlaneGeometry(CORRIDOR_WIDTH * 2, CORRIDOR_HEIGHT * 2.5); 
+    const wallGeo = new THREE.PlaneGeometry(CORRIDOR_WIDTH * 2.5, CORRIDOR_HEIGHT * 3); 
     const wallMat = new THREE.MeshStandardMaterial({
       color: 0xff0000,
       emissive: 0xff003c,
-      emissiveIntensity: 6.0,
+      emissiveIntensity: 5.0,
       transparent: true,
-      opacity: 0.75,
+      opacity: 0.8,
       side: THREE.DoubleSide
     });
     const wallPlane = new THREE.Mesh(wallGeo, wallMat);
@@ -392,7 +400,6 @@ export default function GameScene() {
 
     playGunshotSound();
 
-    // Weapon kickback and muzzle flash
     weaponGroup.position.z = -0.9;
     muzzleFlash.intensity = 20.0;
     if (muzzleFlashMesh) muzzleFlashMesh.material.opacity = 1.0;
@@ -400,7 +407,7 @@ export default function GameScene() {
     setTimeout(() => {
       muzzleFlash.intensity = 0;
       if (muzzleFlashMesh) muzzleFlashMesh.material.opacity = 0;
-    }, 50);
+    }, 60);
 
     raycaster.setFromCamera({ x: 0, y: 0 }, camera);
     const targets = zombies.filter(z => !z.isDead).map(z => z.mesh);
@@ -417,10 +424,10 @@ export default function GameScene() {
       
       const zombie = zombies.find(z => z.mesh === targetMesh);
       if (zombie) {
-        // Shotgun does 3.5 damage (one-shots 3HP Walkers)
+        // Shotgun does 3.5 damage (standard walkers have 3 HP)
         const damage = current.weaponType === 'Shotgun' ? 3.5 : 1.0;
         zombie.hp -= damage;
-        zombie.mesh.position.z += 1.2;
+        zombie.mesh.position.z += 1.0;
 
         setGameState(prev => ({ ...prev, shotsHit: prev.shotsHit + 1 }));
 
@@ -466,7 +473,7 @@ export default function GameScene() {
     scene.fog = new THREE.FogExp2(0x0a0505, 0.012);
     scene.add(engineRef.current.ambientLight);
 
-    // Initial orientation: Facing forward into corridor (+Z)
+    // Initial orientation: Facing forward (+Z)
     player.position.set(0, 4.2, 0); 
     player.rotation.y = Math.PI; 
     camera.rotation.order = 'YXZ';
@@ -508,14 +515,15 @@ export default function GameScene() {
     window.addEventListener('mousemove', onMouseMove);
     
     containerRef.current?.addEventListener('mousedown', () => {
+      // Guarded pointer lock call with defensive catch and async handling
       if (document.pointerLockElement !== containerRef.current) {
         try {
-          if (typeof containerRef.current?.requestPointerLock === 'function') {
-            containerRef.current.requestPointerLock();
+          const promise = containerRef.current?.requestPointerLock() as any;
+          if (promise && typeof promise.catch === 'function') {
+            promise.catch(() => {}); // Catch async rejection
           }
         } catch (e) {
-          // Gracefully handle security errors in restricted environments
-          console.warn("Pointer lock could not be requested.");
+          // Catch synchronous SecurityError if sandbox restrictions exist
         }
       }
       handleShoot();
@@ -531,7 +539,7 @@ export default function GameScene() {
         return;
       }
 
-      // Progression
+      // Stage Progression Logic
       const newTimeInStage = current.progression.timeInCurrentStage + delta;
       if (newTimeInStage >= current.progression.stageDurationThreshold) {
         const nextStage = current.progression.currentStage + 1;
@@ -549,7 +557,7 @@ export default function GameScene() {
           weaponGroup.add(createWeaponModel('Shotgun'));
         } else if (nextStage === 3) {
           weaponType = 'AK47';
-          shotCooldown = 120;
+          shotCooldown = 125;
           weaponGroup.children.filter(child => child instanceof THREE.Group).forEach(child => weaponGroup.remove(child));
           weaponGroup.add(createWeaponModel('AK47'));
         }
@@ -574,11 +582,10 @@ export default function GameScene() {
         setGameState(prev => ({ ...prev, progression: { ...prev.progression, timeInCurrentStage: newTimeInStage } }));
       }
 
-      // Movement logic
+      // Movement Logic
       const moveDir = new THREE.Vector3();
       const keys = engineRef.current.keysPressed;
       
-      // Calculate directions relative to the 180-degree starting rotation
       const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
       const right = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
 
@@ -594,7 +601,6 @@ export default function GameScene() {
         camera.position.y = 4.2 + Math.sin(engineRef.current.bobTimer) * 0.08;
       }
 
-      // Constraints
       player.position.x = Math.max(-CORRIDOR_WIDTH / 2 + 1.8, Math.min(CORRIDOR_WIDTH / 2 - 1.8, player.position.x));
 
       // Wall movement
@@ -632,7 +638,7 @@ export default function GameScene() {
         toPlayer.normalize();
         z.mesh.position.add(toPlayer.multiplyScalar(z.speed * delta));
         z.mesh.lookAt(player.position.x, 0, player.position.z);
-        if (dist < 3.0 && performance.now() - current.lastDamageTime > current.zombieDamageInterval) {
+        if (dist < 3.2 && performance.now() - current.lastDamageTime > current.zombieDamageInterval) {
           triggerDamageFlash();
           const newHp = current.hp - 15;
           if (newHp <= 0) handleGameOver(); else setGameState(prev => ({ ...prev, hp: newHp, lastDamageTime: performance.now() }));
@@ -640,7 +646,7 @@ export default function GameScene() {
         return true;
       });
 
-      // Particles
+      // Particles Update
       engineRef.current.particles = engineRef.current.particles.filter(p => {
         p.mesh.position.add(p.velocity.clone().multiplyScalar(delta));
         p.velocity.y -= 9.8 * delta; 
@@ -653,7 +659,6 @@ export default function GameScene() {
         return true;
       });
 
-      // Weapon smoothing
       weaponGroup.position.z = THREE.MathUtils.lerp(weaponGroup.position.z, -0.6, 0.15); 
       setGameState(prev => ({ ...prev, distance: Math.floor(player.position.z) }));
       renderer.render(scene, camera);
