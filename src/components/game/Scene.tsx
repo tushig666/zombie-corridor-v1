@@ -10,7 +10,7 @@ import GameOver from './GameOver';
 // Constants
 const SEGMENT_LENGTH = 40;
 const CORRIDOR_WIDTH = 12;
-const CORRIDOR_HEIGHT = 9;
+const CORRIDOR_HEIGHT = 13.5; // Increased 1.5x from 9
 
 interface ZombieInstance {
   mesh: THREE.Group;
@@ -196,17 +196,15 @@ export default function GameScene() {
     const scoreValue = Math.round(stats.scoreValue * multiplier);
 
     const group = new THREE.Group();
-    // Scary zombie palette: desaturated, pale-gray skin, dark rag clothing
     const skinMat = new THREE.MeshStandardMaterial({ color: 0x6a6c6e, roughness: 1.0, metalness: 0 }); 
     const clothingMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 1.0 }); 
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 }); 
     const mouthMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
     const goreMat = new THREE.MeshStandardMaterial({ color: 0x440000, roughness: 0.8 }); 
 
-    // Distorted proportions for creepiness
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.44, 0.44), skinMat);
     head.position.y = 1.45;
-    head.rotation.z = (Math.random() - 0.5) * 0.5; // Unnatural head tilt
+    head.rotation.z = (Math.random() - 0.5) * 0.5;
     group.add(head);
 
     const lEye = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.04), eyeMat);
@@ -216,7 +214,7 @@ export default function GameScene() {
     rEye.position.x = 0.12;
     group.add(rEye);
 
-    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.04), mouthMat); // Larger screaming mouth
+    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.04), mouthMat);
     mouth.position.set(0, 1.25, 0.22);
     group.add(mouth);
 
@@ -228,12 +226,11 @@ export default function GameScene() {
     wound.position.set(0, 0.9, 0.16);
     group.add(wound);
 
-    // Asymmetric reachy arms
     const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.9), skinMat);
     leftArm.position.set(-0.35, 1.15, 0.4);
     group.add(leftArm);
 
-    const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 1.2), skinMat); // Extra long reaching arm
+    const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 1.2), skinMat);
     rightArm.position.set(0.35, 1.1, 0.55);
     group.add(rightArm);
 
@@ -355,7 +352,7 @@ export default function GameScene() {
 
   const createCollapseWall = () => {
     const { wallGroup, wallGrid, wallLight, scene } = engineRef.current;
-    const wallGeo = new THREE.PlaneGeometry(16, 12);
+    const wallGeo = new THREE.PlaneGeometry(16, 18); // Increased height from 12 to 18 (1.5x)
     const wallMat = new THREE.MeshStandardMaterial({
       color: 0xff0000,
       emissive: 0xff003c,
@@ -378,11 +375,11 @@ export default function GameScene() {
     for (let i = 0; i < 8; i++) {
       const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 16), cylinderMat.clone());
       bar.rotation.z = Math.PI / 2;
-      bar.position.y = -6 + i * 1.75;
+      bar.position.y = -9 + i * 2.6; // Adjusted y-start and step for 1.5x height
       wallGrid.add(bar);
     }
     for (let i = 0; i < 7; i++) {
-      const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 12), cylinderMat.clone());
+      const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 18), cylinderMat.clone());
       bar.position.x = -7 + i * 2.35;
       wallGrid.add(bar);
     }
@@ -527,8 +524,8 @@ export default function GameScene() {
 
     scene.add(ambientLight);
 
-    player.position.set(0, 2.8, 0);
-    player.rotation.y = Math.PI; // Corrected starting orientation to face forward (+Z)
+    player.position.set(0, 4.2, 0); // Eye level raised for 1.5x scaling
+    player.rotation.y = 0; // Fixed starting orientation to face +Z
     camera.rotation.order = 'YXZ';
     camera.rotation.y = 0; 
     player.add(camera);
@@ -571,7 +568,6 @@ export default function GameScene() {
       if (!current.isGameActive || current.isGameOver) return;
       if (document.pointerLockElement !== containerRef.current) {
         try { 
-          // Defensive check for sandboxed frames
           const promise = containerRef.current?.requestPointerLock();
           if (promise && 'catch' in promise) {
             promise.catch(() => {});
@@ -594,10 +590,8 @@ export default function GameScene() {
       const newTimeInStage = current.progression.timeInCurrentStage + delta;
       if (newTimeInStage >= current.progression.stageDurationThreshold) {
         const nextStage = current.progression.currentStage + 1;
-        // 1.25x for stage 2, then +0.25x for each subsequent stage
         const multiplier = 1.0 + (nextStage > 1 ? 0.25 + (nextStage - 2) * 0.25 : 0);
         
-        // Aggressive zombie scaling: double cap every level up (clamped to 30)
         const spawnCap = Math.min(30, current.progression.spawnCap * 2);
         const spawnInterval = Math.max(0.35, 3.0 / multiplier);
         const wallSpeed = current.wallBaseSpeed * multiplier;
@@ -605,13 +599,11 @@ export default function GameScene() {
         const titles = ['CONTAINMENT BREACH', 'HORDE DETECTED', 'CRITICAL OVERRUN', 'OUTBREAK MAXIMUM', 'SURVIVAL IMPOSSIBLE'];
         const newTitle = titles[Math.min(titles.length - 1, nextStage - 1)];
 
-        // Weapon Upgrade at Stage 3
         let weaponType = current.weaponType;
         let shotCooldown = current.shotCooldown;
         if (nextStage === 3) {
           weaponType = 'AK47';
-          shotCooldown = 120; // Faster fire rate for AK47
-          // Rebuild weapon model safely
+          shotCooldown = 120;
           const toRemove = weaponGroup.children.filter(child => child instanceof THREE.Group && child !== engineRef.current.muzzleFlashMesh);
           toRemove.forEach(child => weaponGroup.remove(child));
           weaponGroup.add(createWeaponModel('AK47'));
@@ -643,19 +635,18 @@ export default function GameScene() {
 
       const moveDir = new THREE.Vector3();
       const keys = engineRef.current.keysPressed;
-      // FPS movement recalibrated for forward-facing orientation
-      if (keys['KeyW']) moveDir.z -= 1;
-      if (keys['KeyS']) moveDir.z += 1;
-      if (keys['KeyA']) moveDir.x -= 1;
-      if (keys['KeyD']) moveDir.x += 1;
+      if (keys['KeyW']) moveDir.z += 1;
+      if (keys['KeyS']) moveDir.z -= 1;
+      if (keys['KeyA']) moveDir.x += 1;
+      if (keys['KeyD']) moveDir.x -= 1;
 
       if (moveDir.length() > 0) {
         moveDir.normalize().applyEuler(new THREE.Euler(0, player.rotation.y, 0));
         player.position.add(moveDir.multiplyScalar(current.speed * delta));
         engineRef.current.bobTimer += delta * 12.0;
-        camera.position.y = 2.8 + Math.sin(engineRef.current.bobTimer) * 0.1;
+        camera.position.y = 4.2 + Math.sin(engineRef.current.bobTimer) * 0.1;
       } else {
-        camera.position.y = THREE.MathUtils.lerp(camera.position.y, 2.8, 0.1);
+        camera.position.y = THREE.MathUtils.lerp(camera.position.y, 4.2, 0.1);
       }
 
       player.position.x = Math.max(-CORRIDOR_WIDTH / 2 + 1.0, Math.min(CORRIDOR_WIDTH / 2 - 1.0, player.position.x));
@@ -733,11 +724,10 @@ export default function GameScene() {
     engineRef.current.particles = [];
     segments.forEach(s => { scene.remove(s.mesh); s.mesh.traverse(obj => { if (obj instanceof THREE.Mesh) { obj.geometry.dispose(); if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose()); else obj.material.dispose(); } }); });
     engineRef.current.segments = [];
-    player.position.set(0, 2.8, 0);
-    player.rotation.y = Math.PI; // Corrected starting orientation
+    player.position.set(0, 4.2, 0);
+    player.rotation.y = 0; // Ensure forward start
     camera.rotation.y = 0;
     
-    // Reset weapon to standard
     const toRemove = weaponGroup.children.filter(child => child instanceof THREE.Group && child !== engineRef.current.muzzleFlashMesh);
     toRemove.forEach(child => weaponGroup.remove(child));
     weaponGroup.add(createWeaponModel('Standard'));

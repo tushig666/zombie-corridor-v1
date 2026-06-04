@@ -10,10 +10,11 @@ export interface ZombieStats {
 }
 
 export const ZOMBIE_CLASSES: Record<ZombieType, ZombieStats> = {
-  Walker: { type: 'Walker', baseHp: 3, baseSpeed: 21.6, scoreValue: 10, scale: 2.8 },
-  Runner: { type: 'Runner', baseHp: 2, baseSpeed: 38.4, scoreValue: 15, scale: 2.5 },
-  Tank: { type: 'Tank', baseHp: 6, baseSpeed: 14.4, scoreValue: 50, scale: 4.5 },
-  Elite: { type: 'Elite', baseHp: 8, baseSpeed: 25.6, scoreValue: 100, scale: 3.6 },
+  // Scales increased 1.5x from previous (2.8->4.2, 2.5->3.75, 4.5->6.75, 3.6->5.4)
+  Walker: { type: 'Walker', baseHp: 3, baseSpeed: 21.6, scoreValue: 10, scale: 4.2 },
+  Runner: { type: 'Runner', baseHp: 2, baseSpeed: 38.4, scoreValue: 15, scale: 3.75 },
+  Tank: { type: 'Tank', baseHp: 6, baseSpeed: 14.4, scoreValue: 50, scale: 6.75 },
+  Elite: { type: 'Elite', baseHp: 8, baseSpeed: 25.6, scoreValue: 100, scale: 5.4 },
 };
 
 export interface ProgressionEngine {
@@ -71,7 +72,7 @@ export const INITIAL_GAME_STATE: GameState = {
   shotCooldown: 200,
   lastSpawnTime: 0,
   wallZ: -30,
-  wallBaseSpeed: 7.14, // 5.4925 * 1.3 = 7.14
+  wallBaseSpeed: 7.14,
   wallCurrentSpeed: 7.14,
   wallMaxDistanceBehind: 45,
   shotsFired: 0,
