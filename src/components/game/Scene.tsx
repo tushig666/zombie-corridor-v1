@@ -40,8 +40,13 @@ export default function GameScene() {
   const containerRef = useRef<HTMLDivElement>(null);
   const flashRef = useRef<HTMLDivElement>(null);
   const bgMusicRef = useRef<HTMLAudioElement>(null);
-  const gunshotPoolRef = useRef<HTMLAudioElement[]>([]);
+  
+  // Weapon Audio Pools
+  const riflePoolRef = useRef<HTMLAudioElement[]>([]);
+  const shotgunPoolRef = useRef<HTMLAudioElement[]>([]);
+  const ak47PoolRef = useRef<HTMLAudioElement[]>([]);
   const zombieSoundPoolRef = useRef<HTMLAudioElement[]>([]);
+  
   const isGameOverTriggered = useRef(false);
   const [gameState, setGameState] = useState<GameState>(INITIAL_GAME_STATE);
   const [distToWall, setDistToWall] = useState(20);
@@ -76,23 +81,26 @@ export default function GameScene() {
   }, [gameState]);
 
   useEffect(() => {
-    const gunshotUrl = "https://www.myinstants.com/media/sounds/gsht-44263.mp3";
-    const gPool: HTMLAudioElement[] = [];
-    for (let i = 0; i < 20; i++) { 
-      const audio = new Audio(gunshotUrl);
-      audio.load();
-      gPool.push(audio);
-    }
-    gunshotPoolRef.current = gPool;
+    // New Audio URLs
+    const rifleUrl = "https://cdn.freesound.org/previews/855/855654_11861213-lq.mp3";
+    const shotgunUrl = "https://cdn.freesound.org/previews/668/668353_11535496-lq.mp3";
+    const ak47Url = "https://cdn.freesound.org/previews/507/507137_10816912-lq.mp3";
+    const zombieUrl = "https://cdn.freesound.org/previews/315/315847_3506994-lq.mp3";
 
-    const zombieSoundUrl = "https://www.myinstants.com/media/sounds/old-minecraft-zombie-sound.mp3";
-    const zPool: HTMLAudioElement[] = [];
-    for (let i = 0; i < 10; i++) {
-      const audio = new Audio(zombieSoundUrl);
-      audio.load();
-      zPool.push(audio);
-    }
-    zombieSoundPoolRef.current = zPool;
+    const createPool = (url: string, size: number) => {
+      const pool: HTMLAudioElement[] = [];
+      for (let i = 0; i < size; i++) {
+        const audio = new Audio(url);
+        audio.load();
+        pool.push(audio);
+      }
+      return pool;
+    };
+
+    riflePoolRef.current = createPool(rifleUrl, 10);
+    shotgunPoolRef.current = createPool(shotgunUrl, 10);
+    ak47PoolRef.current = createPool(ak47Url, 20); // Large pool for full-auto
+    zombieSoundPoolRef.current = createPool(zombieUrl, 10);
   }, []);
 
   const toggleMute = useCallback(() => {
@@ -102,13 +110,23 @@ export default function GameScene() {
     if (bgMusicRef.current) {
       bgMusicRef.current.muted = nextMuted;
     }
-    gunshotPoolRef.current.forEach(a => a.muted = nextMuted);
-    zombieSoundPoolRef.current.forEach(a => a.muted = nextMuted);
+    const allPools = [
+      ...riflePoolRef.current, 
+      ...shotgunPoolRef.current, 
+      ...ak47PoolRef.current, 
+      ...zombieSoundPoolRef.current
+    ];
+    allPools.forEach(a => a.muted = nextMuted);
   }, []);
 
-  const playGunshotSound = () => {
+  const playWeaponSound = (type: 'Standard' | 'Shotgun' | 'AK47') => {
     if (isMutedRef.current) return;
-    const sound = gunshotPoolRef.current.find(a => a.paused || a.ended);
+    let pool: HTMLAudioElement[] = [];
+    if (type === 'Standard') pool = riflePoolRef.current;
+    else if (type === 'Shotgun') pool = shotgunPoolRef.current;
+    else if (type === 'AK47') pool = ak47PoolRef.current;
+
+    const sound = pool.find(a => a.paused || a.ended);
     if (sound) {
       sound.volume = 0.8;
       sound.currentTime = 0;
@@ -403,7 +421,7 @@ export default function GameScene() {
       shotsFired: prev.shotsFired + 1
     }));
 
-    playGunshotSound();
+    playWeaponSound(current.weaponType);
 
     weaponGroup.position.z = -0.9;
     muzzleFlash.intensity = 20.0;
@@ -524,14 +542,11 @@ export default function GameScene() {
     containerRef.current?.addEventListener('mousedown', () => {
       engineRef.current.isFiring = true;
       try {
-        const lockPromise = containerRef.current?.requestPointerLock();
-        if (lockPromise && typeof lockPromise.catch === 'function') {
-          lockPromise.catch(() => {
-            // Silence sandboxed pointer lock errors
-          });
+        if (typeof containerRef.current?.requestPointerLock === 'function') {
+          containerRef.current.requestPointerLock();
         }
       } catch (e) {
-        // Handle security errors in restricted environments silently
+        // Handle security errors silently
       }
       handleShoot();
     });
@@ -602,7 +617,6 @@ export default function GameScene() {
         handleShoot();
       }
 
-      const keys = engineRef.current.keysPressed;
       const direction = new THREE.Vector3();
       camera.getWorldDirection(direction);
       direction.y = 0;
@@ -610,6 +624,7 @@ export default function GameScene() {
 
       const lateral = new THREE.Vector3().crossVectors(direction, camera.up).normalize();
       const moveDir = new THREE.Vector3();
+      const keys = engineRef.current.keysPressed;
 
       if (keys['KeyW']) moveDir.add(direction);
       if (keys['KeyS']) moveDir.sub(direction);
