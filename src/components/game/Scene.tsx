@@ -205,7 +205,6 @@ export default function GameScene() {
     const group = new THREE.Group();
     const skinMat = new THREE.MeshStandardMaterial({ color: 0x6a6c6e }); 
     const clothingMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a }); 
-    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 }); 
 
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), skinMat);
     head.position.y = 1.45;
@@ -325,7 +324,7 @@ export default function GameScene() {
   };
 
   const handleShoot = () => {
-    const { raycaster, camera, zombies, weaponGroup, particles, scene, muzzleFlash, muzzleFlashMesh } = engineRef.current;
+    const { raycaster, camera, zombies, weaponGroup, scene, muzzleFlash, muzzleFlashMesh } = engineRef.current;
     const current = stateRef.current;
 
     if (performance.now() < current.nextShotTime) return;
@@ -407,7 +406,7 @@ export default function GameScene() {
     scene.add(engineRef.current.ambientLight);
 
     player.position.set(0, 4.2, 0); 
-    player.rotation.y = 0; // Face forward (+Z)
+    player.rotation.y = Math.PI; // Face forward (+Z)
     camera.rotation.order = 'YXZ';
     player.add(camera);
     scene.add(player);
@@ -447,7 +446,13 @@ export default function GameScene() {
     window.addEventListener('mousemove', onMouseMove);
     
     containerRef.current?.addEventListener('mousedown', () => {
-      if (document.pointerLockElement !== containerRef.current) containerRef.current?.requestPointerLock();
+      if (document.pointerLockElement !== containerRef.current) {
+        try {
+          containerRef.current?.requestPointerLock();
+        } catch (e) {
+          // Silently handle cases where pointer lock is restricted (e.g. sandboxed environments)
+        }
+      }
       handleShoot();
     });
 
@@ -509,8 +514,10 @@ export default function GameScene() {
       const moveDir = new THREE.Vector3();
       const keys = engineRef.current.keysPressed;
       
-      const forward = new THREE.Vector3(0, 0, 1).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
-      const right = new THREE.Vector3(-1, 0, 0).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
+      // forward vector points towards zombies (+Z when rotation is PI)
+      const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
+      // right vector for strafing
+      const right = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
 
       if (keys['KeyW']) moveDir.add(forward);
       if (keys['KeyS']) moveDir.sub(forward);
@@ -579,7 +586,7 @@ export default function GameScene() {
     zombies.forEach(z => scene.remove(z.mesh));
     engineRef.current.zombies = [];
     player.position.set(0, 4.2, 0);
-    player.rotation.y = 0; 
+    player.rotation.y = Math.PI; // Face forward (+Z)
     camera.rotation.x = 0;
     
     const toRemove = weaponGroup.children.filter(child => child instanceof THREE.Group);
