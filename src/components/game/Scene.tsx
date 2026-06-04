@@ -114,26 +114,25 @@ export default function GameScene() {
     const stats = ZOMBIE_CLASSES[type];
     const multiplier = current.progression.globalDifficultyMultiplier;
 
-    // Apply Live Injective Spawn Factory Matrices
     const speed = stats.baseSpeed * multiplier;
     const hp = Math.round(stats.baseHp * multiplier);
     const scoreValue = Math.round(stats.scoreValue * multiplier);
 
     const group = new THREE.Group();
+    // Scary desaturated unified palette
     const skinMat = new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.9, metalness: 0.05 }); 
     const clothingMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 1.0 }); 
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 }); 
     const mouthMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-    const teethMat = new THREE.MeshBasicMaterial({ color: 0xd1d5db }); 
     const goreMat = new THREE.MeshStandardMaterial({ color: 0x7f1d1d, roughness: 0.8 }); 
 
-    // Head
+    // Head - slightly tilted for creepiness
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.44, 0.44), skinMat);
     head.position.y = 1.45;
-    head.rotation.z = (Math.random() - 0.5) * 0.3;
+    head.rotation.z = (Math.random() - 0.5) * 0.4;
     group.add(head);
 
-    // Eyes
+    // Eyes - tiny glowing red pinpricks
     const lEye = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.05), eyeMat);
     lEye.position.set(-0.12, 1.55, 0.22);
     group.add(lEye);
@@ -141,8 +140,8 @@ export default function GameScene() {
     rEye.position.x = 0.12;
     group.add(rEye);
 
-    // Mouth
-    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.04), mouthMat);
+    // Mouth - large screaming void
+    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.22, 0.04), mouthMat);
     mouth.position.set(0, 1.32, 0.22);
     group.add(mouth);
 
@@ -156,13 +155,13 @@ export default function GameScene() {
     wound.position.set(0, 0.9, 0.16);
     group.add(wound);
 
-    // Arms
+    // Arms - asymmetric and creepy
     const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.75), skinMat);
     leftArm.position.set(-0.35, 1.15, 0.3);
     group.add(leftArm);
 
-    const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.85), skinMat); 
-    rightArm.position.set(0.35, 1.1, 0.35);
+    const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.95), skinMat); 
+    rightArm.position.set(0.35, 1.1, 0.4);
     group.add(rightArm);
 
     // Legs
@@ -269,7 +268,7 @@ export default function GameScene() {
       lamp.position.set(0, CORRIDOR_HEIGHT - 0.05, i);
       group.add(lamp);
 
-      const light = new THREE.PointLight(0xff3333, 12.0, 30);
+      const light = new THREE.PointLight(0xff3333, 15.0, 30);
       light.position.set(0, CORRIDOR_HEIGHT - 0.5, i);
       group.add(light);
     }
@@ -437,7 +436,7 @@ export default function GameScene() {
     engineRef.current.renderer = renderer;
 
     scene.background = new THREE.Color(0x0a0505);
-    scene.fog = new THREE.FogExp2(0x0a0505, 0.012); 
+    scene.fog = new THREE.FogExp2(0x0a0505, 0.01); 
 
     scene.add(ambientLight);
 
@@ -477,8 +476,17 @@ export default function GameScene() {
     containerRef.current?.addEventListener('mousedown', (e) => {
       const current = stateRef.current;
       if (!current.isGameActive || current.isGameOver) return;
+      
       if (document.pointerLockElement !== containerRef.current) {
-        try { containerRef.current?.requestPointerLock(); } catch (err) {}
+        // Defensive pointer lock handling for sandboxed environments
+        try {
+          const lockPromise = containerRef.current?.requestPointerLock() as any;
+          if (lockPromise && typeof lockPromise.catch === 'function') {
+            lockPromise.catch(() => { /* Pointer lock blocked/failed - ignore */ });
+          }
+        } catch (err) {
+          /* Fallback for browsers that throw synchronously */
+        }
       }
       handleShoot();
     });
@@ -496,7 +504,6 @@ export default function GameScene() {
       // PROGRESSION ENGINE LOGIC
       const newTimeInStage = current.progression.timeInCurrentStage + delta;
       if (newTimeInStage >= current.progression.stageDurationThreshold) {
-        // Trigger Next Stage
         const nextStage = current.progression.currentStage + 1;
         const multiplier = Math.pow(1.5, nextStage - 1);
         const spawnCap = Math.min(30, Math.round(6 * multiplier));
@@ -512,9 +519,10 @@ export default function GameScene() {
         ];
         const newTitle = titles[Math.min(titles.length - 1, nextStage - 1)];
 
-        // Visual Tactic Feedback
         engineRef.current.ambientLight.intensity *= 0.85;
-        (scene.fog as THREE.FogExp2).density += 0.01;
+        if (scene.fog instanceof THREE.FogExp2) {
+          scene.fog.density += 0.005;
+        }
 
         setGameState(prev => ({
           ...prev,
@@ -688,7 +696,9 @@ export default function GameScene() {
     }
 
     ambientLight.intensity = 1.2;
-    scene.fog = new THREE.FogExp2(0x0a0505, 0.012);
+    if (scene.fog instanceof THREE.FogExp2) {
+      scene.fog.density = 0.01;
+    }
 
     setGameState({ 
       ...INITIAL_GAME_STATE, 
