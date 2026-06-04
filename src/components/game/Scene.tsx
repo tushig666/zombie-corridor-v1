@@ -234,7 +234,6 @@ export default function GameScene() {
     const { scene, player, zombies } = engineRef.current;
     const current = stateRef.current;
     
-    // Choose zombie type randomly for variety, default to Walker
     const types: ZombieType[] = ['Walker', 'Runner', 'Tank', 'Elite'];
     const chosenType = types[Math.floor(Math.random() * types.length)];
     const stats = ZOMBIE_CLASSES[chosenType]; 
@@ -297,7 +296,6 @@ export default function GameScene() {
     rightLeg.position.x = 0.3;
     group.add(rightLeg);
 
-    // CRITICAL: Set the tall human-sized scale once on spawn
     group.scale.setScalar(stats.scale);
     
     group.position.set(
@@ -588,9 +586,9 @@ export default function GameScene() {
         let spawnCap = Math.round(INITIAL_GAME_STATE.progression.spawnCap * (1.5 * nextStage));
         let spawnInterval = Math.max(0.4, 3.0 / multiplier);
 
-        // Stage 5+ Protocol: Double spawn rate
-        if (nextStage >= 5) {
-          spawnInterval /= 2.0; 
+        // Stage 4+ Protocol: 1.5x spawn rate increase
+        if (nextStage >= 4) {
+          spawnInterval /= 1.5; 
         }
 
         let weaponType = current.weaponType;
