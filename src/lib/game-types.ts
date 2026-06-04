@@ -10,10 +10,10 @@ export interface ZombieStats {
 }
 
 export const ZOMBIE_CLASSES: Record<ZombieType, ZombieStats> = {
-  Walker: { type: 'Walker', baseHp: 3, baseSpeed: 10.8, scoreValue: 10, scale: 2.0 },
-  Runner: { type: 'Runner', baseHp: 2, baseSpeed: 19.2, scoreValue: 15, scale: 1.8 },
-  Tank: { type: 'Tank', baseHp: 6, baseSpeed: 7.2, scoreValue: 50, scale: 3.2 },
-  Elite: { type: 'Elite', baseHp: 8, baseSpeed: 12.8, scoreValue: 100, scale: 2.6 },
+  Walker: { type: 'Walker', baseHp: 3, baseSpeed: 21.6, scoreValue: 10, scale: 2.8 },
+  Runner: { type: 'Runner', baseHp: 2, baseSpeed: 38.4, scoreValue: 15, scale: 2.5 },
+  Tank: { type: 'Tank', baseHp: 6, baseSpeed: 14.4, scoreValue: 50, scale: 4.5 },
+  Elite: { type: 'Elite', baseHp: 8, baseSpeed: 25.6, scoreValue: 100, scale: 3.6 },
 };
 
 export interface ProgressionEngine {
@@ -52,6 +52,8 @@ export interface GameState {
   progression: ProgressionEngine;
   stageTitle: string;
   showAlert: boolean;
+  // Weapon
+  weaponType: 'Standard' | 'AK47';
 }
 
 export const INITIAL_GAME_STATE: GameState = {
@@ -62,15 +64,15 @@ export const INITIAL_GAME_STATE: GameState = {
   elapsedTime: 0,
   hp: 100,
   maxHp: 100,
-  speed: 16.0, 
+  speed: 22.0, 
   zombieDamageInterval: 1200,
   lastDamageTime: 0,
   nextShotTime: 0,
   shotCooldown: 200,
   lastSpawnTime: 0,
   wallZ: -30,
-  wallBaseSpeed: 5.4925, // 4.225 * 1.3 = 5.4925
-  wallCurrentSpeed: 5.4925,
+  wallBaseSpeed: 7.14, // 5.4925 * 1.3 = 7.14
+  wallCurrentSpeed: 7.14,
   wallMaxDistanceBehind: 45,
   shotsFired: 0,
   shotsHit: 0,
@@ -83,6 +85,7 @@ export const INITIAL_GAME_STATE: GameState = {
   startTime: 0,
   stageTitle: 'CONTAINMENT BREACH',
   showAlert: false,
+  weaponType: 'Standard',
   progression: {
     currentStage: 1,
     timeInCurrentStage: 0,

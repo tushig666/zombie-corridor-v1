@@ -122,6 +122,46 @@ export default function GameScene() {
     }
   };
 
+  const createWeaponModel = (type: 'Standard' | 'AK47') => {
+    const group = new THREE.Group();
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.9, roughness: 0.1 });
+    const detailMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 1.0, roughness: 0.2 });
+    const emissionMat = new THREE.MeshStandardMaterial({ color: 0xff003c, emissive: 0xff003c, emissiveIntensity: 3.0 });
+
+    if (type === 'Standard') {
+      const gunBody = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.25, 0.7), metalMat);
+      const barrel1 = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.6), detailMat);
+      barrel1.rotation.x = Math.PI / 2;
+      barrel1.position.set(0.05, 0.06, 0.45);
+      const barrel2 = barrel1.clone();
+      barrel2.position.x = -0.05;
+      const glowRail = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.65), emissionMat);
+      glowRail.position.set(0, 0.12, 0.1);
+      group.add(gunBody, barrel1, barrel2, glowRail);
+    } else {
+      // AK-47 Design
+      const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.3, 0.9), metalMat);
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.2), detailMat);
+      barrel.rotation.x = Math.PI / 2;
+      barrel.position.set(0, 0.08, 0.75);
+      const magazine = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.25), metalMat);
+      magazine.position.set(0, -0.3, 0.2);
+      magazine.rotation.x = -0.2;
+      const stock = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.35, 0.6), new THREE.MeshStandardMaterial({ color: 0x2a1a10, roughness: 0.9 }));
+      stock.position.set(0, -0.05, -0.6);
+      const rail1 = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 1.0), emissionMat);
+      rail1.position.set(0.1, 0.12, 0.3);
+      const rail2 = rail1.clone();
+      rail2.position.x = -0.1;
+      group.add(receiver, barrel, magazine, stock, rail1, rail2);
+    }
+
+    group.position.set(0.45, -0.35, -0.8);
+    group.scale.setScalar(1.2);
+    group.castShadow = true;
+    return group;
+  };
+
   const spawnZombie = () => {
     const { scene, player, zombies } = engineRef.current;
     const current = stateRef.current;
@@ -156,42 +196,42 @@ export default function GameScene() {
     const scoreValue = Math.round(stats.scoreValue * multiplier);
 
     const group = new THREE.Group();
-    const skinMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.9, metalness: 0.05 }); 
-    const clothingMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 1.0 }); 
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0x4a4a4a, roughness: 1.0, metalness: 0 }); 
+    const clothingMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 1.0 }); 
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 }); 
     const mouthMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-    const goreMat = new THREE.MeshStandardMaterial({ color: 0x660000, roughness: 0.8 }); 
+    const goreMat = new THREE.MeshStandardMaterial({ color: 0x440000, roughness: 0.8 }); 
 
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.44, 0.44), skinMat);
     head.position.y = 1.45;
-    head.rotation.z = (Math.random() - 0.5) * 0.4;
+    head.rotation.z = 0.2;
     group.add(head);
 
-    const lEye = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.05), eyeMat);
+    const lEye = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.04), eyeMat);
     lEye.position.set(-0.12, 1.55, 0.22);
     group.add(lEye);
     const rEye = lEye.clone();
     rEye.position.x = 0.12;
     group.add(rEye);
 
-    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.22, 0.04), mouthMat);
-    mouth.position.set(0, 1.32, 0.22);
+    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.25, 0.04), mouthMat);
+    mouth.position.set(0, 1.3, 0.22);
     group.add(mouth);
 
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.8, 0.3), clothingMat);
     torso.position.y = 0.9;
     group.add(torso);
 
-    const wound = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.4, 0.05), goreMat);
+    const wound = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 0.05), goreMat);
     wound.position.set(0, 0.9, 0.16);
     group.add(wound);
 
-    const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.75), skinMat);
+    const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.7), skinMat);
     leftArm.position.set(-0.35, 1.15, 0.3);
     group.add(leftArm);
 
-    const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.95), skinMat); 
-    rightArm.position.set(0.35, 1.1, 0.4);
+    const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 1.0), skinMat); 
+    rightArm.position.set(0.35, 1.1, 0.45);
     group.add(rightArm);
 
     const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.15), clothingMat);
@@ -204,7 +244,7 @@ export default function GameScene() {
 
     group.scale.setScalar(stats.scale);
     group.position.set(
-      (Math.random() - 0.5) * (CORRIDOR_WIDTH - 3.5),
+      (Math.random() - 0.5) * (CORRIDOR_WIDTH - 4.0),
       0,
       player.position.z + 50 + Math.random() * 50
     );
@@ -487,35 +527,11 @@ export default function GameScene() {
     player.position.set(0, 2.8, 0);
     player.rotation.y = 0;
     camera.rotation.order = 'YXZ';
-    camera.rotation.y = Math.PI;
+    camera.rotation.y = 0; // Fixed starting orientation to face forward
     player.add(camera);
     scene.add(player);
 
-    const gunBody = new THREE.Mesh(
-      new THREE.BoxGeometry(0.18, 0.25, 0.7),
-      new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.9, roughness: 0.1 })
-    );
-    const barrel1 = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.03, 0.03, 0.6),
-      new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 1.0, roughness: 0.2 })
-    );
-    barrel1.rotation.x = Math.PI / 2;
-    barrel1.position.set(0.05, 0.06, 0.45);
-    const barrel2 = barrel1.clone();
-    barrel2.position.x = -0.05;
-
-    const glowRail = new THREE.Mesh(
-      new THREE.BoxGeometry(0.02, 0.02, 0.65),
-      new THREE.MeshStandardMaterial({ color: 0xff003c, emissive: 0xff003c, emissiveIntensity: 3.0 })
-    );
-    glowRail.position.set(0, 0.12, 0.1);
-
-    const gun = new THREE.Group();
-    gun.add(gunBody, barrel1, barrel2, glowRail);
-    gun.position.set(0.45, -0.35, -0.8);
-    gun.scale.setScalar(1.2);
-    gun.castShadow = true;
-    
+    const gun = createWeaponModel('Standard');
     weaponGroup.add(gun);
     muzzleFlash.position.set(0.45, -0.25, -1.4);
     weaponGroup.add(muzzleFlash);
@@ -569,22 +585,42 @@ export default function GameScene() {
       const newTimeInStage = current.progression.timeInCurrentStage + delta;
       if (newTimeInStage >= current.progression.stageDurationThreshold) {
         const nextStage = current.progression.currentStage + 1;
-        const multiplier = 1 + (nextStage - 1) * 0.25;
-        const spawnCap = Math.min(60, 6 + (nextStage - 1) * 12);
+        // 1.25x for stage 2, then +0.25x for each subsequent stage
+        const multiplier = 1.0 + (nextStage > 1 ? 0.25 + (nextStage - 2) * 0.25 : 0);
+        
+        // Aggressive zombie scaling: double cap every level up (clamped to 30)
+        const spawnCap = Math.min(30, current.progression.spawnCap * 2);
         const spawnInterval = Math.max(0.35, 3.0 / multiplier);
         const wallSpeed = current.wallBaseSpeed * multiplier;
 
         const titles = ['CONTAINMENT BREACH', 'HORDE DETECTED', 'CRITICAL OVERRUN', 'OUTBREAK MAXIMUM', 'SURVIVAL IMPOSSIBLE'];
         const newTitle = titles[Math.min(titles.length - 1, nextStage - 1)];
 
+        // Weapon Upgrade at Stage 3
+        let weaponType = current.weaponType;
+        let shotCooldown = current.shotCooldown;
+        if (nextStage === 3) {
+          weaponType = 'AK47';
+          shotCooldown = 120; // Faster fire rate for AK47
+          // Rebuild weapon model
+          weaponGroup.children.forEach(child => {
+             if (child instanceof THREE.Group && child !== engineRef.current.muzzleFlashMesh) {
+                weaponGroup.remove(child);
+             }
+          });
+          weaponGroup.add(createWeaponModel('AK47'));
+        }
+
         engineRef.current.ambientLight.intensity *= 0.85;
-        if (scene.fog instanceof THREE.FogExp2) scene.fog.density += 0.008;
+        if (scene.fog instanceof THREE.FogExp2) scene.fog.density += 0.01;
 
         setGameState(prev => ({
           ...prev,
           showAlert: true,
           stageTitle: newTitle,
           wallCurrentSpeed: wallSpeed,
+          weaponType,
+          shotCooldown,
           progression: {
             ...prev.progression,
             currentStage: nextStage,
@@ -601,6 +637,7 @@ export default function GameScene() {
 
       const moveDir = new THREE.Vector3();
       const keys = engineRef.current.keysPressed;
+      // W,A,S,D now correctly move player in relative direction
       if (keys['KeyW']) moveDir.z += 1;
       if (keys['KeyS']) moveDir.z -= 1;
       if (keys['KeyA']) moveDir.x += 1;
@@ -615,7 +652,7 @@ export default function GameScene() {
         camera.position.y = THREE.MathUtils.lerp(camera.position.y, 2.8, 0.1);
       }
 
-      player.position.x = Math.max(-CORRIDOR_WIDTH / 2 + 0.5, Math.min(CORRIDOR_WIDTH / 2 - 0.5, player.position.x));
+      player.position.x = Math.max(-CORRIDOR_WIDTH / 2 + 1.0, Math.min(CORRIDOR_WIDTH / 2 - 1.0, player.position.x));
 
       setGameState(prev => {
         let newWallZ = prev.wallZ + prev.wallCurrentSpeed * delta;
@@ -655,7 +692,7 @@ export default function GameScene() {
         const armSwing = Math.sin(performance.now() * 0.005 * z.speed) * 0.4;
         z.leftArm.rotation.x = armSwing;
         z.rightArm.rotation.x = -armSwing;
-        if (dist < 2.2 && performance.now() - current.lastDamageTime > current.zombieDamageInterval) {
+        if (dist < 3.2 && performance.now() - current.lastDamageTime > current.zombieDamageInterval) {
           triggerDamageFlash();
           const newHp = current.hp - 12;
           if (newHp <= 0) handleGameOver(); else setGameState(prev => ({ ...prev, hp: newHp, lastDamageTime: performance.now() }));
@@ -682,7 +719,7 @@ export default function GameScene() {
   };
 
   const restartGame = () => {
-    const { scene, zombies, particles, segments, player, camera, ambientLight } = engineRef.current;
+    const { scene, zombies, particles, segments, player, camera, ambientLight, weaponGroup } = engineRef.current;
     isGameOverTriggered.current = false;
     zombies.forEach(z => scene.remove(z.mesh));
     engineRef.current.zombies = [];
@@ -692,7 +729,16 @@ export default function GameScene() {
     engineRef.current.segments = [];
     player.position.set(0, 2.8, 0);
     player.rotation.y = 0;
-    camera.rotation.y = Math.PI;
+    camera.rotation.y = 0;
+    
+    // Reset weapon to standard
+    weaponGroup.children.forEach(child => {
+      if (child instanceof THREE.Group && child !== engineRef.current.muzzleFlashMesh) {
+         weaponGroup.remove(child);
+      }
+    });
+    weaponGroup.add(createWeaponModel('Standard'));
+
     for (let i = 0; i < 4; i++) engineRef.current.segments.push(createSegment(i * SEGMENT_LENGTH));
     ambientLight.intensity = 0.45;
     if (scene.fog instanceof THREE.FogExp2) scene.fog.density = 0.012;
@@ -709,11 +755,11 @@ export default function GameScene() {
       {!gameState.isGameActive && !gameState.isGameOver && (
         <div id="start-screen">
           <h1>ZOMBIE CORRIDOR</h1>
-          <div className="start-subtitle">FACILITY CONTAINMENT REBUILD V2</div>
+          <div className="start-subtitle">FACILITY LOCKDOWN V2</div>
           <button className="btn" onClick={restartGame}>ENTER LOCKDOWN ZONE</button>
           <div className="instructions-block">
             <span style={{ color: 'var(--red-emergency)', fontWeight: 'bold' }}>MISSION OBJECTIVE:</span>
-            <p style={{ fontSize: '0.85rem', margin: '10px 0' }}>SURVIVE THE ENDLESS CORRIDOR. NEUTRALIZE BIO-HAZARDS. AVOID THERMAL COLLAPSE WALL.</p>
+            <p style={{ fontSize: '0.85rem', margin: '10px 0' }}>SURVIVE THE HORDES. REACH STAGE 3 FOR AK-47 REINFORCEMENT. AVOID COLLAPSE WALL.</p>
             <table>
               <tbody>
                 <tr><td><span className="key-highlight">W, A, S, D</span></td><td>TACTICAL MOVEMENT</td></tr>
@@ -728,7 +774,10 @@ export default function GameScene() {
       {gameState.showAlert && (
         <div className="stage-alert">
           ALERT: {gameState.stageTitle}
-          <div className="stage-multiplier">MULTIPLIER {gameState.progression.globalDifficultyMultiplier.toFixed(2)}x</div>
+          <div className="stage-multiplier">
+            {gameState.weaponType === 'AK47' && <div style={{ color: '#00ff66' }}>AK-47 UNLOCKED</div>}
+            MULTIPLIER {gameState.progression.globalDifficultyMultiplier.toFixed(2)}x
+          </div>
         </div>
       )}
       {gameState.isGameOver && (
