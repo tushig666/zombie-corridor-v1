@@ -494,7 +494,9 @@ export default function GameScene() {
     containerRef.current?.addEventListener('mousedown', () => {
       if (document.pointerLockElement !== containerRef.current) {
         try {
-          containerRef.current?.requestPointerLock();
+          if (typeof containerRef.current?.requestPointerLock === 'function') {
+            containerRef.current.requestPointerLock();
+          }
         } catch (e) {
           // Gracefully handle security errors in restricted environments
           console.warn("Pointer lock could not be requested.");
