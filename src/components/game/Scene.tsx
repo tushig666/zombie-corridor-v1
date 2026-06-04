@@ -386,7 +386,7 @@ export default function GameScene() {
 
     playGunshotSound();
 
-    weaponGroup.position.z = -0.35; 
+    weaponGroup.position.z = -0.75; // Recoil push forward (relative to view)
     weaponGroup.rotation.x = 0.2; 
 
     muzzleFlash.intensity = 15.0;
@@ -502,7 +502,7 @@ export default function GameScene() {
     scene.add(ambientLight);
 
     player.position.set(0, 1.8, 0);
-    player.rotation.y = 0; // Standard forward is +Z
+    player.rotation.y = 0; // Forward is +Z
     camera.rotation.order = 'YXZ';
     camera.rotation.y = Math.PI; // Face +Z
     player.add(camera);
@@ -530,18 +530,18 @@ export default function GameScene() {
 
     const gun = new THREE.Group();
     gun.add(gunBody, barrel1, barrel2, glowRail);
-    gun.position.set(0.35, -0.25, 0.6); // Moved forward to be visible (+Z)
+    gun.position.set(0.35, -0.25, -0.6); // Positioned in front of camera (-Z in local rotated space)
     gun.castShadow = true;
     
     weaponGroup.add(gun);
-    muzzleFlash.position.set(0.35, -0.2, 1.0);
+    muzzleFlash.position.set(0.35, -0.2, -1.0);
     weaponGroup.add(muzzleFlash);
 
     const muzzleFlashMesh = new THREE.Mesh(
       new THREE.IcosahedronGeometry(0.12, 1),
       new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0 })
     );
-    muzzleFlashMesh.position.set(0.35, -0.2, 1.1);
+    muzzleFlashMesh.position.set(0.35, -0.2, -1.1);
     engineRef.current.muzzleFlashMesh = muzzleFlashMesh;
     weaponGroup.add(muzzleFlashMesh);
 
@@ -594,10 +594,12 @@ export default function GameScene() {
       const newTimeInStage = current.progression.timeInCurrentStage + delta;
       if (newTimeInStage >= current.progression.stageDurationThreshold) {
         const nextStage = current.progression.currentStage + 1;
-        const multiplier = Math.pow(1.5, nextStage - 1);
-        const spawnCap = Math.min(30, Math.round(6 * multiplier));
+        // 1.25x for stage 2, then +0.25x for each subsequent (1.5, 1.75, etc.)
+        const multiplier = 1 + (nextStage - 1) * 0.25;
+        // Aggressive spawn cap increase
+        const spawnCap = Math.min(60, 6 + (nextStage - 1) * 12);
         const spawnInterval = Math.max(0.35, 3.0 / multiplier);
-        const wallSpeed = current.wallBaseSpeed * Math.pow(1.5, nextStage - 1);
+        const wallSpeed = current.wallBaseSpeed * multiplier;
 
         const titles = [
           'CONTAINMENT BREACH',
@@ -744,7 +746,7 @@ export default function GameScene() {
         return true;
       });
 
-      weaponGroup.position.z = THREE.MathUtils.lerp(weaponGroup.position.z, 0.6, 0.15); 
+      weaponGroup.position.z = THREE.MathUtils.lerp(weaponGroup.position.z, -0.6, 0.15); 
       weaponGroup.rotation.x = THREE.MathUtils.lerp(weaponGroup.rotation.x, 0, 0.15);
 
       setGameState(prev => ({ ...prev, distance: Math.floor(player.position.z) }));
@@ -779,8 +781,8 @@ export default function GameScene() {
     engineRef.current.segments = [];
     
     player.position.set(0, 1.8, 0);
-    player.rotation.y = 0; // Standard forward is +Z
-    camera.rotation.y = Math.PI; // Face forward (+Z)
+    player.rotation.y = 0; // Forward is +Z
+    camera.rotation.y = Math.PI; // Look +Z
     for (let i = 0; i < 4; i++) {
       engineRef.current.segments.push(createSegment(i * SEGMENT_LENGTH));
     }

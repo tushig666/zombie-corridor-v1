@@ -69,8 +69,8 @@ export const INITIAL_GAME_STATE: GameState = {
   shotCooldown: 200,
   lastSpawnTime: 0,
   wallZ: -20,
-  wallBaseSpeed: 3.25, // 2.5 * 1.3 = 3.25
-  wallCurrentSpeed: 3.25,
+  wallBaseSpeed: 4.225, // 3.25 * 1.3 = 4.225
+  wallCurrentSpeed: 4.225,
   wallMaxDistanceBehind: 35,
   shotsFired: 0,
   shotsHit: 0,
