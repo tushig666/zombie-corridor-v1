@@ -539,7 +539,7 @@ export default function GameScene() {
             containerRef.current.requestPointerLock();
           }
         } catch (e) {
-          // Gracefully handle security errors in restricted environments
+          // Robust safety wrapper for restricted sandboxed environments
         }
       }
       handleShoot();
