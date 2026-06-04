@@ -42,6 +42,7 @@ export default function GameScene() {
   const flashRef = useRef<HTMLDivElement>(null);
   const bgMusicRef = useRef<HTMLAudioElement>(null);
   const gunshotPoolRef = useRef<HTMLAudioElement[]>([]);
+  const zombieSoundPoolRef = useRef<HTMLAudioElement[]>([]);
   const isGameOverTriggered = useRef(false);
   const [gameState, setGameState] = useState<GameState>(INITIAL_GAME_STATE);
   const [distToWall, setDistToWall] = useState(20);
@@ -65,7 +66,7 @@ export default function GameScene() {
     wallGroup: new THREE.Group(),
     wallGrid: new THREE.Group(),
     wallLight: new THREE.SpotLight(0xff003c, 5.0, 45),
-    ambientLight: new THREE.AmbientLight(0xffffff, 0.4),
+    ambientLight: new THREE.AmbientLight(0xffffff, 0.45),
   });
 
   const stateRef = useRef<GameState>(INITIAL_GAME_STATE);
@@ -74,31 +75,49 @@ export default function GameScene() {
     stateRef.current = gameState;
   }, [gameState]);
 
-  // Pre-allocate audio pool for gunshots to handle overlapping sounds
+  // Pre-allocate audio pools
   useEffect(() => {
-    const pool: HTMLAudioElement[] = [];
+    // Gunshot pool
+    const gPool: HTMLAudioElement[] = [];
     const gunshotUrl = "https://www.myinstants.com/media/sounds/gsht.mp3";
     for (let i = 0; i < 10; i++) {
       const audio = new Audio(gunshotUrl);
       audio.load();
-      pool.push(audio);
+      gPool.push(audio);
     }
-    gunshotPoolRef.current = pool;
+    gunshotPoolRef.current = gPool;
+
+    // Zombie sound pool
+    const zPool: HTMLAudioElement[] = [];
+    const zombieSoundUrl = "https://www.myinstants.com/media/sounds/old-minecraft-zombie-sound.mp3";
+    for (let i = 0; i < 8; i++) {
+      const audio = new Audio(zombieSoundUrl);
+      audio.load();
+      zPool.push(audio);
+    }
+    zombieSoundPoolRef.current = zPool;
   }, []);
 
   const playGunshotSound = () => {
-    // Find an available sound in the pool
     const sound = gunshotPoolRef.current.find(a => a.paused || a.ended);
     if (sound) {
       sound.currentTime = 0;
       sound.play().catch(() => {});
     } else {
-      // If all are playing, force restart the first one
       const first = gunshotPoolRef.current[0];
       if (first) {
         first.currentTime = 0;
         first.play().catch(() => {});
       }
+    }
+  };
+
+  const playZombieSound = () => {
+    const sound = zombieSoundPoolRef.current.find(a => a.paused || a.ended);
+    if (sound) {
+      sound.currentTime = 0;
+      sound.volume = 0.6;
+      sound.play().catch(() => {});
     }
   };
 
@@ -150,12 +169,12 @@ export default function GameScene() {
 
     const group = new THREE.Group();
     
-    // SCARY CREEPY DESIGN: Desaturated sickly unified palette
-    const skinMat = new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.9, metalness: 0.05 }); 
-    const clothingMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 1.0 }); 
+    // Scary creepy design: Sickly pale palette
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.9, metalness: 0.05 }); 
+    const clothingMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 1.0 }); 
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 }); 
     const mouthMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-    const goreMat = new THREE.MeshStandardMaterial({ color: 0x7f1d1d, roughness: 0.8 }); 
+    const goreMat = new THREE.MeshStandardMaterial({ color: 0x660000, roughness: 0.8 }); 
 
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.44, 0.44), skinMat);
     head.position.y = 1.45;
@@ -181,7 +200,6 @@ export default function GameScene() {
     wound.position.set(0, 0.9, 0.16);
     group.add(wound);
 
-    // Asymmetric unsettling limbs
     const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.75), skinMat);
     leftArm.position.set(-0.35, 1.15, 0.3);
     group.add(leftArm);
@@ -202,7 +220,7 @@ export default function GameScene() {
     group.position.set(
       (Math.random() - 0.5) * (CORRIDOR_WIDTH - 2.5),
       0,
-      player.position.z + 35 + Math.random() * 40
+      player.position.z + 40 + Math.random() * 40
     );
 
     const originalMaterials = new Map<THREE.Mesh, THREE.Material>();
@@ -228,6 +246,7 @@ export default function GameScene() {
 
     scene.add(group);
     zombies.push(instance);
+    playZombieSound();
   };
 
   const createSegment = (z: number) => {
@@ -293,7 +312,7 @@ export default function GameScene() {
       lamp.position.set(0, CORRIDOR_HEIGHT - 0.05, i);
       group.add(lamp);
 
-      const light = new THREE.PointLight(0xff3333, 15.0, 25);
+      const light = new THREE.PointLight(0xff3333, 20.0, 25);
       light.position.set(0, CORRIDOR_HEIGHT - 0.5, i);
       group.add(light);
     }
@@ -365,14 +384,11 @@ export default function GameScene() {
       shotsFired: prev.shotsFired + 1
     }));
 
-    // Play gunshot sound
     playGunshotSound();
 
-    // Visual Recoil
     weaponGroup.position.z = -0.35; 
     weaponGroup.rotation.x = 0.2; 
 
-    // Muzzle Flash Effect
     muzzleFlash.intensity = 15.0;
     if (muzzleFlashMesh) {
       muzzleFlashMesh.material.opacity = 1.0;
@@ -405,7 +421,6 @@ export default function GameScene() {
 
         setGameState(prev => ({ ...prev, shotsHit: prev.shotsHit + 1 }));
 
-        // Hit flash logic
         const flashMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 8.0 });
         zombie.mesh.traverse(obj => {
           if (obj instanceof THREE.Mesh) obj.material = flashMat;
@@ -482,16 +497,14 @@ export default function GameScene() {
     engineRef.current.renderer = renderer;
 
     scene.background = new THREE.Color(0x0a0505);
-    scene.fog = new THREE.FogExp2(0x0a0505, 0.01);
+    scene.fog = new THREE.FogExp2(0x0a0505, 0.015);
 
     scene.add(ambientLight);
 
     player.position.set(0, 1.8, 0);
-    player.rotation.y = Math.PI; 
     player.add(camera);
     scene.add(player);
 
-    // Redesigned Tactical Sci-Fi Gun
     const gunBody = new THREE.Mesh(
       new THREE.BoxGeometry(0.12, 0.18, 0.5),
       new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.9, roughness: 0.1 })
@@ -514,19 +527,18 @@ export default function GameScene() {
 
     const gun = new THREE.Group();
     gun.add(gunBody, barrel1, barrel2, glowRail);
-    gun.position.set(0.35, -0.25, -0.5); 
+    gun.position.set(0.35, -0.25, -0.6); 
     gun.castShadow = true;
     
     weaponGroup.add(gun);
-    muzzleFlash.position.set(0.35, -0.2, -0.9);
+    muzzleFlash.position.set(0.35, -0.2, -1.0);
     weaponGroup.add(muzzleFlash);
 
-    // Fire Effect Mesh
     const muzzleFlashMesh = new THREE.Mesh(
       new THREE.IcosahedronGeometry(0.12, 1),
       new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0 })
     );
-    muzzleFlashMesh.position.set(0.35, -0.2, -1.0);
+    muzzleFlashMesh.position.set(0.35, -0.2, -1.1);
     engineRef.current.muzzleFlashMesh = muzzleFlashMesh;
     weaponGroup.add(muzzleFlashMesh);
 
@@ -576,7 +588,6 @@ export default function GameScene() {
         return;
       }
 
-      // Progression Engine
       const newTimeInStage = current.progression.timeInCurrentStage + delta;
       if (newTimeInStage >= current.progression.stageDurationThreshold) {
         const nextStage = current.progression.currentStage + 1;
@@ -630,10 +641,10 @@ export default function GameScene() {
 
       const moveDir = new THREE.Vector3();
       const keys = engineRef.current.keysPressed;
-      if (keys['KeyW']) moveDir.z -= 1; 
-      if (keys['KeyS']) moveDir.z += 1; 
-      if (keys['KeyA']) moveDir.x -= 1; 
-      if (keys['KeyD']) moveDir.x += 1; 
+      if (keys['KeyW']) moveDir.z += 1; 
+      if (keys['KeyS']) moveDir.z -= 1; 
+      if (keys['KeyA']) moveDir.x += 1; 
+      if (keys['KeyD']) moveDir.x -= 1; 
 
       if (moveDir.length() > 0) {
         moveDir.normalize().applyEuler(new THREE.Euler(0, player.rotation.y, 0));
@@ -646,7 +657,6 @@ export default function GameScene() {
 
       player.position.x = Math.max(-3.7, Math.min(3.7, player.position.x));
 
-      // Collapse wall logic
       const currentWallSpeed = current.wallBaseSpeed;
       setGameState(prev => {
         let newWallZ = prev.wallZ + currentWallSpeed * delta;
@@ -665,7 +675,6 @@ export default function GameScene() {
 
       if (player.position.z <= current.wallZ) handleGameOver();
 
-      // Environment recycling
       if (player.position.z - engineRef.current.segments[0].endZ > 15) {
         const old = engineRef.current.segments.shift()!;
         scene.remove(old.mesh);
@@ -680,13 +689,11 @@ export default function GameScene() {
         engineRef.current.segments.push(createSegment(last.endZ));
       }
 
-      // Zombie Spawning
       if (performance.now() - current.lastSpawnTime > current.progression.currentSpawnInterval * 1000 && engineRef.current.zombies.length < current.progression.spawnCap) {
         spawnZombie();
         setGameState(prev => ({ ...prev, lastSpawnTime: performance.now() }));
       }
 
-      // Zombie AI
       engineRef.current.zombies = engineRef.current.zombies.filter(z => {
         if (z.isDead) return false;
         if (z.mesh.position.z <= current.wallZ) {
@@ -722,7 +729,6 @@ export default function GameScene() {
         return true;
       });
 
-      // Particle update
       engineRef.current.particles = engineRef.current.particles.filter(p => {
         p.mesh.position.add(p.velocity.clone().multiplyScalar(delta));
         p.velocity.y -= 9.8 * delta;
@@ -735,8 +741,7 @@ export default function GameScene() {
         return true;
       });
 
-      // Viewmodel recoil interp
-      weaponGroup.position.z = THREE.MathUtils.lerp(weaponGroup.position.z, -0.5, 0.15); 
+      weaponGroup.position.z = THREE.MathUtils.lerp(weaponGroup.position.z, -0.6, 0.15); 
       weaponGroup.rotation.x = THREE.MathUtils.lerp(weaponGroup.rotation.x, 0, 0.15);
 
       setGameState(prev => ({ ...prev, distance: Math.floor(player.position.z) }));
@@ -771,14 +776,14 @@ export default function GameScene() {
     engineRef.current.segments = [];
     
     player.position.set(0, 1.8, 0);
-    player.rotation.y = Math.PI; 
+    player.rotation.y = 0; 
     for (let i = 0; i < 4; i++) {
       engineRef.current.segments.push(createSegment(i * SEGMENT_LENGTH));
     }
 
-    ambientLight.intensity = 0.4;
+    ambientLight.intensity = 0.45;
     if (scene.fog instanceof THREE.FogExp2) {
-      scene.fog.density = 0.01;
+      scene.fog.density = 0.015;
     }
 
     if (bgMusicRef.current) {
