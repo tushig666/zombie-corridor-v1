@@ -81,7 +81,7 @@ export default function GameScene() {
   useEffect(() => {
     const gunshotUrl = "https://www.myinstants.com/media/sounds/gsht-44263.mp3";
     const gPool: HTMLAudioElement[] = [];
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 15; i++) {
       const audio = new Audio(gunshotUrl);
       audio.load();
       gPool.push(audio);
@@ -90,7 +90,7 @@ export default function GameScene() {
 
     const zombieSoundUrl = "https://www.myinstants.com/media/sounds/old-minecraft-zombie-sound.mp3";
     const zPool: HTMLAudioElement[] = [];
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 10; i++) {
       const audio = new Audio(zombieSoundUrl);
       audio.load();
       zPool.push(audio);
@@ -105,12 +105,15 @@ export default function GameScene() {
     if (bgMusicRef.current) {
       bgMusicRef.current.muted = nextMuted;
     }
+    gunshotPoolRef.current.forEach(a => a.muted = nextMuted);
+    zombieSoundPoolRef.current.forEach(a => a.muted = nextMuted);
   }, []);
 
   const playGunshotSound = () => {
     if (isMutedRef.current) return;
     const sound = gunshotPoolRef.current.find(a => a.paused || a.ended);
     if (sound) {
+      sound.volume = 0.8;
       sound.currentTime = 0;
       sound.play().catch(() => {});
     }
@@ -121,7 +124,7 @@ export default function GameScene() {
     const sound = zombieSoundPoolRef.current.find(a => a.paused || a.ended);
     if (sound) {
       sound.currentTime = 0;
-      sound.volume = 0.6;
+      sound.volume = 0.5;
       sound.play().catch(() => {});
     }
   };
@@ -366,7 +369,7 @@ export default function GameScene() {
 
   const createCollapseWall = () => {
     const { wallGroup, wallGrid, wallLight, scene } = engineRef.current;
-    const wallGeo = new THREE.PlaneGeometry(16, 18);
+    const wallGeo = new THREE.PlaneGeometry(16, 20); // Scaled height
     const wallMat = new THREE.MeshStandardMaterial({
       color: 0xff0000,
       emissive: 0xff003c,
@@ -389,11 +392,11 @@ export default function GameScene() {
     for (let i = 0; i < 8; i++) {
       const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 16), cylinderMat.clone());
       bar.rotation.z = Math.PI / 2;
-      bar.position.y = -9 + i * 2.6;
+      bar.position.y = -10 + i * 2.8;
       wallGrid.add(bar);
     }
     for (let i = 0; i < 7; i++) {
-      const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 18), cylinderMat.clone());
+      const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 20), cylinderMat.clone());
       bar.position.x = -7 + i * 2.35;
       wallGrid.add(bar);
     }
@@ -539,7 +542,7 @@ export default function GameScene() {
     scene.add(ambientLight);
 
     player.position.set(0, 4.2, 0); 
-    player.rotation.y = Math.PI; // Correctly face forward into corridor (+Z)
+    player.rotation.y = Math.PI; // Face corridor (+Z)
     camera.rotation.order = 'YXZ';
     camera.rotation.y = 0; 
     player.add(camera);
@@ -653,15 +656,17 @@ export default function GameScene() {
       const moveDir = new THREE.Vector3();
       const keys = engineRef.current.keysPressed;
       
-      // Standard local axis movement (W:Forward, S:Back, A:Left, D:Right)
-      // Since player is rotated 180 (Math.PI), we map local -Z to World +Z (Forward)
-      if (keys['KeyW']) moveDir.z -= 1;
-      if (keys['KeyS']) moveDir.z += 1;
-      if (keys['KeyA']) moveDir.x -= 1;
-      if (keys['KeyD']) moveDir.x += 1;
+      // Fix reversed WASD by explicitly mapping to world directions
+      const forward = new THREE.Vector3(0, 0, 1).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
+      const right = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
+
+      if (keys['KeyW']) moveDir.add(forward);
+      if (keys['KeyS']) moveDir.sub(forward);
+      if (keys['KeyA']) moveDir.sub(right);
+      if (keys['KeyD']) moveDir.add(right);
 
       if (moveDir.length() > 0) {
-        moveDir.normalize().applyEuler(new THREE.Euler(0, player.rotation.y, 0));
+        moveDir.normalize();
         player.position.add(moveDir.multiplyScalar(current.speed * delta));
         engineRef.current.bobTimer += delta * 12.0;
         camera.position.y = 4.2 + Math.sin(engineRef.current.bobTimer) * 0.1;
@@ -745,7 +750,7 @@ export default function GameScene() {
     segments.forEach(s => { scene.remove(s.mesh); s.mesh.traverse(obj => { if (obj instanceof THREE.Mesh) { obj.geometry.dispose(); if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose()); else obj.material.dispose(); } }); });
     engineRef.current.segments = [];
     player.position.set(0, 4.2, 0);
-    player.rotation.y = Math.PI; // Correctly face forward into corridor (+Z)
+    player.rotation.y = Math.PI; // Correctly face forward (+Z)
     camera.rotation.y = 0;
     
     const toRemove = weaponGroup.children.filter(child => child instanceof THREE.Group && child !== engineRef.current.muzzleFlashMesh);
@@ -760,6 +765,8 @@ export default function GameScene() {
       bgMusicRef.current.muted = isMutedRef.current;
       bgMusicRef.current.play().catch(() => {}); 
     }
+    gunshotPoolRef.current.forEach(a => a.load());
+    zombieSoundPoolRef.current.forEach(a => a.load());
     setGameState({ ...INITIAL_GAME_STATE, isGameActive: true, lastSpawnTime: performance.now(), startTime: performance.now() });
   };
 
