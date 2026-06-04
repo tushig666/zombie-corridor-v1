@@ -58,6 +58,7 @@ export default function GameScene() {
     player: new THREE.Group(),
     weaponGroup: new THREE.Group(),
     muzzleFlash: new THREE.PointLight(0xffaa00, 0, 5),
+    muzzleFlashMesh: null as THREE.Mesh | null,
     bobTimer: 0,
     raycaster: new THREE.Raycaster(),
     // Collapse Wall components
@@ -76,7 +77,7 @@ export default function GameScene() {
   // Pre-allocate audio pool for gunshots to handle overlapping sounds
   useEffect(() => {
     const pool: HTMLAudioElement[] = [];
-    const gunshotUrl = "https://www.myinstants.com/media/sounds/gunshot-new.mp3";
+    const gunshotUrl = "https://www.myinstants.com/media/sounds/gsht.mp3";
     for (let i = 0; i < 10; i++) {
       const audio = new Audio(gunshotUrl);
       audio.load();
@@ -353,7 +354,7 @@ export default function GameScene() {
   };
 
   const handleShoot = () => {
-    const { raycaster, camera, zombies, weaponGroup, particles, scene } = engineRef.current;
+    const { raycaster, camera, zombies, weaponGroup, particles, scene, muzzleFlash, muzzleFlashMesh } = engineRef.current;
     const current = stateRef.current;
 
     if (performance.now() < current.nextShotTime) return;
@@ -371,10 +372,20 @@ export default function GameScene() {
     weaponGroup.position.z = -0.35; 
     weaponGroup.rotation.x = 0.2; 
 
-    engineRef.current.muzzleFlash.intensity = 5.5;
+    // Muzzle Flash Effect
+    muzzleFlash.intensity = 15.0;
+    if (muzzleFlashMesh) {
+      muzzleFlashMesh.material.opacity = 1.0;
+      muzzleFlashMesh.scale.setScalar(1.5);
+    }
+    
     setTimeout(() => {
-      engineRef.current.muzzleFlash.intensity = 0;
-    }, 60);
+      muzzleFlash.intensity = 0;
+      if (muzzleFlashMesh) {
+        muzzleFlashMesh.material.opacity = 0;
+        muzzleFlashMesh.scale.setScalar(1);
+      }
+    }, 50);
 
     raycaster.setFromCamera({ x: 0, y: 0 }, camera);
     const targets = zombies.filter(z => !z.isDead).map(z => z.mesh);
@@ -509,6 +520,16 @@ export default function GameScene() {
     weaponGroup.add(gun);
     muzzleFlash.position.set(0.35, -0.2, -0.9);
     weaponGroup.add(muzzleFlash);
+
+    // Fire Effect Mesh
+    const muzzleFlashMesh = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(0.12, 1),
+      new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0 })
+    );
+    muzzleFlashMesh.position.set(0.35, -0.2, -1.0);
+    engineRef.current.muzzleFlashMesh = muzzleFlashMesh;
+    weaponGroup.add(muzzleFlashMesh);
+
     camera.add(weaponGroup);
 
     createCollapseWall();
