@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -6,7 +5,6 @@ import * as THREE from 'three';
 import { GameState, INITIAL_GAME_STATE, ZOMBIE_CLASSES, ZombieType } from '@/lib/game-types';
 import HUD from './HUD';
 import GameOver from './GameOver';
-import { postGamePerformanceReview, PostGamePerformanceReviewOutput } from '@/ai/flows/post-game-performance-review-flow';
 
 // Constants
 const SEGMENT_LENGTH = 30;
@@ -44,7 +42,6 @@ export default function GameScene() {
   const isGameOverTriggered = useRef(false);
   const [gameState, setGameState] = useState<GameState>(INITIAL_GAME_STATE);
   const [distToWall, setDistToWall] = useState(20);
-  const [review, setReview] = useState<PostGamePerformanceReviewOutput | null>(null);
   
   const engineRef = useRef({
     scene: new THREE.Scene(),
@@ -393,7 +390,7 @@ export default function GameScene() {
             score: prev.score + zombie.scoreValue,
             killsByType: {
               ...prev.killsByType,
-              [zombie.type]: prev.killsByType[zombie.type] + 1
+              [zombie.type]: (prev.killsByType[zombie.type] || 0) + 1
             }
           }));
           scene.remove(zombie.mesh);
@@ -402,11 +399,9 @@ export default function GameScene() {
     }
   };
 
-  const handleGameOver = async () => {
+  const handleGameOver = () => {
     if (isGameOverTriggered.current) return;
     isGameOverTriggered.current = true;
-
-    const finalState = stateRef.current;
     
     setGameState(prev => ({ ...prev, isGameOver: true, isGameActive: false }));
     try {
@@ -414,22 +409,6 @@ export default function GameScene() {
         document.exitPointerLock();
       }
     } catch(e) {}
-
-    const survivalTime = Math.floor((performance.now() - finalState.startTime) / 1000);
-    const accuracy = finalState.shotsFired > 0 ? (finalState.shotsHit / finalState.shotsFired) * 100 : 0;
-
-    try {
-      const result = await postGamePerformanceReview({
-        zombiesKilled: finalState.killsByType,
-        accuracy: Math.round(accuracy),
-        distanceTraveled: finalState.distance,
-        survivalTime,
-        highestScore: finalState.score
-      });
-      setReview(result);
-    } catch (e) {
-      console.error("AI Review failed", e);
-    }
   };
 
   const initEngine = () => {
@@ -451,7 +430,6 @@ export default function GameScene() {
     const ambient = new THREE.AmbientLight(0xffffff, 0.4);
     scene.add(ambient);
 
-    // Orientation Fix: Player starts facing +Z
     player.position.set(0, 1.8, 0);
     player.rotation.y = Math.PI; // Face forward (+Z) relative to segment gen
     player.add(camera);
@@ -522,7 +500,7 @@ export default function GameScene() {
 
       const moveDir = new THREE.Vector3();
       const keys = engineRef.current.keysPressed;
-      if (keys['KeyW']) moveDir.z -= 1; // local -z is forward when player rotation is PI
+      if (keys['KeyW']) moveDir.z -= 1; 
       if (keys['KeyS']) moveDir.z += 1;
       if (keys['KeyA']) moveDir.x -= 1;
       if (keys['KeyD']) moveDir.x += 1;
@@ -539,7 +517,6 @@ export default function GameScene() {
 
       player.position.x = Math.max(-3.7, Math.min(3.7, player.position.x));
 
-      // Wall Movement & Proximity Clamping
       const wallSpeed = current.wallBaseSpeed + (current.stage * 0.4);
       setGameState(prev => {
         let newWallZ = prev.wallZ + wallSpeed * delta;
@@ -550,7 +527,6 @@ export default function GameScene() {
       });
       setDistToWall(player.position.z - current.wallZ);
 
-      // Update Wall Mesh Position & Visuals
       engineRef.current.wallGroup.position.z = current.wallZ;
       const wallPulse = 0.6 + Math.sin(performance.now() * 0.008) * 0.4;
       engineRef.current.wallGrid.children.forEach(child => {
@@ -559,7 +535,6 @@ export default function GameScene() {
         }
       });
 
-      // Atmospheric Fog Interaction
       const dangerFactor = Math.max(0, 1 - (player.position.z - current.wallZ) / 35);
       scene.fog.color.setHSL(0, 1, 0.05 + dangerFactor * 0.1);
       (scene.fog as THREE.FogExp2).density = 0.012 + dangerFactor * 0.05;
@@ -673,12 +648,11 @@ export default function GameScene() {
     engineRef.current.segments = [];
     
     player.position.set(0, 1.8, 0);
-    player.rotation.y = Math.PI; // Face forward (+Z)
+    player.rotation.y = Math.PI; 
     for (let i = 0; i < 4; i++) {
       engineRef.current.segments.push(createSegment(i * SEGMENT_LENGTH));
     }
 
-    setReview(null);
     setGameState({ 
       ...INITIAL_GAME_STATE, 
       isGameActive: true, 
@@ -721,7 +695,6 @@ export default function GameScene() {
       {gameState.isGameOver && (
         <GameOver 
           state={gameState} 
-          review={review} 
           onRestart={restartGame} 
           onQuit={() => {
             isGameOverTriggered.current = false;
@@ -744,4 +717,3 @@ export default function GameScene() {
     </div>
   );
 }
-
