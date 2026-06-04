@@ -10,7 +10,7 @@ export interface ZombieStats {
 }
 
 export const ZOMBIE_CLASSES: Record<ZombieType, ZombieStats> = {
-  // Scales adjusted for roughly human height (eye-to-eye with player at 4.2m)
+  // Scales calibrated for human-sized confrontation (eye-to-eye with player at 4.2m)
   Walker: { type: 'Walker', baseHp: 3, baseSpeed: 21.6, scoreValue: 10, scale: 3.2 },
   Runner: { type: 'Runner', baseHp: 2, baseSpeed: 38.4, scoreValue: 15, scale: 3.0 },
   Tank: { type: 'Tank', baseHp: 6, baseSpeed: 14.4, scoreValue: 50, scale: 4.5 },
@@ -44,18 +44,14 @@ export interface GameState {
   wallBaseSpeed: number;
   wallCurrentSpeed: number;
   wallMaxDistanceBehind: number;
-  // Stats
   shotsFired: number;
   shotsHit: number;
   killsByType: Record<string, number>;
   startTime: number;
-  // Progression
   progression: ProgressionEngine;
   stageTitle: string;
   showAlert: boolean;
-  // Weapon
   weaponType: 'Standard' | 'Shotgun' | 'AK47';
-  // Audio Settings
   musicVolume: number;
   sfxVolume: number;
 }

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -9,7 +10,6 @@ import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Settings, X } from 'lucide-react';
 
-// Constants for v2 Environment
 const SEGMENT_LENGTH = 30;
 const CORRIDOR_WIDTH = 12; 
 const CORRIDOR_HEIGHT = 13.5; 
@@ -43,7 +43,6 @@ export default function GameScene() {
   const flashRef = useRef<HTMLDivElement>(null);
   const bgMusicRef = useRef<HTMLAudioElement>(null);
   
-  // Weapon Audio Pools
   const riflePoolRef = useRef<HTMLAudioElement[]>([]);
   const shotgunPoolRef = useRef<HTMLAudioElement[]>([]);
   const ak47PoolRef = useRef<HTMLAudioElement[]>([]);
@@ -84,14 +83,12 @@ export default function GameScene() {
   }, [gameState]);
 
   useEffect(() => {
-    // Dynamic volume updates for music
     if (bgMusicRef.current) {
       bgMusicRef.current.volume = gameState.musicVolume;
     }
   }, [gameState.musicVolume]);
 
   useEffect(() => {
-    // Definitive Weapon Audio
     const rifleUrl = "https://cdn.freesound.org/previews/855/855654_11861213-lq.mp3";
     const shotgunUrl = "https://cdn.freesound.org/previews/668/668353_11535496-lq.mp3";
     const ak47Url = "https://cdn.freesound.org/previews/507/507137_10816912-lq.mp3";
@@ -506,9 +503,11 @@ export default function GameScene() {
     scene.fog = new THREE.FogExp2(0x0a0505, 0.012);
     scene.add(engineRef.current.ambientLight);
 
-    player.position.set(0, 4.2, 0); 
+    // Root Cause Fix: Ground the player and position the camera locally for 4.2m eye level
+    player.position.set(0, 0, 0); 
     player.rotation.y = Math.PI; 
     camera.rotation.order = 'YXZ';
+    camera.position.set(0, 4.2, 0); 
     player.add(camera);
     scene.add(player);
 
@@ -553,12 +552,7 @@ export default function GameScene() {
       engineRef.current.isFiring = true;
       
       if (typeof containerRef.current?.requestPointerLock === 'function') {
-        try {
-          const promise = containerRef.current.requestPointerLock() as any;
-          if (promise && typeof promise.catch === 'function') {
-            promise.catch(() => {});
-          }
-        } catch (e) {}
+        containerRef.current.requestPointerLock()?.catch(() => {});
       }
       handleShoot();
     });
@@ -731,9 +725,10 @@ export default function GameScene() {
     engineRef.current.zombies = [];
     engineRef.current.particles = [];
     engineRef.current.segments = [];
-    player.position.set(0, 4.2, 0);
+    player.position.set(0, 0, 0);
     player.rotation.y = Math.PI;
     camera.rotation.x = 0;
+    camera.position.set(0, 4.2, 0);
     for (let i = 0; i < 4; i++) {
       engineRef.current.segments.push(createSegment(i * SEGMENT_LENGTH));
     }
