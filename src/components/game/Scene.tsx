@@ -54,6 +54,7 @@ export default function GameScene() {
     renderer: null as THREE.WebGLRenderer | null,
     clock: new THREE.Clock(),
     keysPressed: {} as Record<string, boolean>,
+    isFiring: false,
     zombies: [] as ZombieInstance[],
     particles: [] as ParticleInstance[],
     segments: [] as SegmentInstance[],
@@ -77,7 +78,7 @@ export default function GameScene() {
   useEffect(() => {
     const gunshotUrl = "https://www.myinstants.com/media/sounds/gsht-44263.mp3";
     const gPool: HTMLAudioElement[] = [];
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 20; i++) { // Increased pool for automatic fire
       const audio = new Audio(gunshotUrl);
       audio.load();
       gPool.push(audio);
@@ -213,12 +214,21 @@ export default function GameScene() {
     const group = new THREE.Group();
     const skinMat = new THREE.MeshStandardMaterial({ color: 0x8a7a7a, roughness: 0.8 }); 
     const muscleMat = new THREE.MeshStandardMaterial({ color: 0x4a0000, emissive: 0xff0000, emissiveIntensity: 0.8 }); 
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 5.0 });
 
-    // GORGON-CLASS MUTATION
+    // GORGON-CLASS MUTATION (TALLER SCALE)
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), skinMat);
     head.position.y = 1.35;
     head.position.z = 0.1;
     group.add(head);
+
+    // Red Eyes
+    const leftEye = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.05), eyeMat);
+    leftEye.position.set(-0.08, 0.05, 0.16);
+    head.add(leftEye);
+    const rightEye = leftEye.clone();
+    rightEye.position.x = 0.08;
+    head.add(rightEye);
 
     const torso = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.1, 0.6), skinMat);
     torso.position.y = 0.85;
@@ -472,7 +482,6 @@ export default function GameScene() {
     scene.fog = new THREE.FogExp2(0x0a0505, 0.012);
     scene.add(engineRef.current.ambientLight);
 
-    // PERFECT ORIENTATION: Facing +Z
     player.position.set(0, 4.2, 0); 
     player.rotation.y = Math.PI; 
     camera.rotation.order = 'YXZ';
@@ -495,7 +504,6 @@ export default function GameScene() {
     camera.add(weaponGroup);
     createCollapseWall();
     
-    // Initial segments
     for (let i = 0; i < 4; i++) {
       segments.push(createSegment(i * SEGMENT_LENGTH));
     }
@@ -518,6 +526,7 @@ export default function GameScene() {
     window.addEventListener('mousemove', onMouseMove);
     
     containerRef.current?.addEventListener('mousedown', () => {
+      engineRef.current.isFiring = true;
       if (document.pointerLockElement !== containerRef.current) {
         try {
           if (typeof containerRef.current?.requestPointerLock === 'function') {
@@ -529,6 +538,10 @@ export default function GameScene() {
         } catch (e) {}
       }
       handleShoot();
+    });
+
+    window.addEventListener('mouseup', () => {
+      engineRef.current.isFiring = false;
     });
 
     const animate = () => {
@@ -554,12 +567,12 @@ export default function GameScene() {
         
         if (nextStage === 2) {
           weaponType = 'Shotgun';
-          shotCooldown = 750; 
+          shotCooldown = 500; // Reduced for responsiveness
           weaponGroup.children.filter(child => child instanceof THREE.Group).forEach(child => weaponGroup.remove(child));
           weaponGroup.add(createWeaponModel('Shotgun'));
         } else if (nextStage === 3) {
           weaponType = 'AK47';
-          shotCooldown = 135;
+          shotCooldown = 85; // Faster auto-fire
           weaponGroup.children.filter(child => child instanceof THREE.Group).forEach(child => weaponGroup.remove(child));
           weaponGroup.add(createWeaponModel('AK47'));
         }
@@ -584,7 +597,11 @@ export default function GameScene() {
         setGameState(prev => ({ ...prev, progression: { ...prev.progression, timeInCurrentStage: newTimeInStage } }));
       }
 
-      // PERFECT WASD CONTROLS: Calibrated for view-relative movement
+      // Automatic fire logic
+      if (engineRef.current.isFiring && current.weaponType === 'AK47') {
+        handleShoot();
+      }
+
       const keys = engineRef.current.keysPressed;
       const moveDir = new THREE.Vector3();
       
@@ -609,7 +626,6 @@ export default function GameScene() {
 
       player.position.x = Math.max(-CORRIDOR_WIDTH / 2 + 1.8, Math.min(CORRIDOR_WIDTH / 2 - 1.8, player.position.x));
 
-      // Wall logic
       setGameState(prev => {
         let newWallZ = prev.wallZ + prev.wallCurrentSpeed * (1 + (prev.progression.currentStage - 1) * 0.2) * delta;
         if (player.position.z - newWallZ > prev.wallMaxDistanceBehind) newWallZ = player.position.z - prev.wallMaxDistanceBehind;
@@ -620,7 +636,6 @@ export default function GameScene() {
       engineRef.current.wallGroup.position.z = current.wallZ;
       if (player.position.z <= current.wallZ) handleGameOver();
 
-      // Infinite corridor
       if (engineRef.current.segments.length > 0 && player.position.z - engineRef.current.segments[0].endZ > 10) {
         const old = engineRef.current.segments.shift()!;
         scene.remove(old.mesh);
@@ -628,13 +643,11 @@ export default function GameScene() {
         engineRef.current.segments.push(createSegment(last.endZ));
       }
 
-      // Spawning
       if (performance.now() - current.lastSpawnTime > current.progression.currentSpawnInterval * 1000 && engineRef.current.zombies.length < current.progression.spawnCap) {
         spawnZombie();
         setGameState(prev => ({ ...prev, lastSpawnTime: performance.now() }));
       }
 
-      // Zombie updates
       engineRef.current.zombies = engineRef.current.zombies.filter(z => {
         if (z.isDead) return false;
 
@@ -658,7 +671,6 @@ export default function GameScene() {
         return true;
       });
 
-      // Particle updates
       engineRef.current.particles = engineRef.current.particles.filter(p => {
         p.mesh.position.add(p.velocity.clone().multiplyScalar(delta));
         p.velocity.y -= 12.0 * delta; 
@@ -686,7 +698,6 @@ export default function GameScene() {
   const restartGame = () => {
     const { scene, zombies, player, camera, weaponGroup, particles, segments } = engineRef.current;
     
-    // 1. Purge old game objects
     isGameOverTriggered.current = false;
     zombies.forEach(z => scene.remove(z.mesh));
     particles.forEach(p => scene.remove(p.mesh));
@@ -696,17 +707,14 @@ export default function GameScene() {
     engineRef.current.particles = [];
     engineRef.current.segments = [];
     
-    // 2. Reset Player
     player.position.set(0, 4.2, 0);
-    player.rotation.y = Math.PI; // Face +Z
+    player.rotation.y = Math.PI;
     camera.rotation.x = 0;
     
-    // 3. Regenerate Corridor
     for (let i = 0; i < 4; i++) {
       engineRef.current.segments.push(createSegment(i * SEGMENT_LENGTH));
     }
     
-    // 4. Reset Weapon
     weaponGroup.children.filter(child => child instanceof THREE.Group).forEach(child => weaponGroup.remove(child));
     weaponGroup.add(createWeaponModel('Standard'));
 
