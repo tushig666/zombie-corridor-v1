@@ -81,7 +81,7 @@ export default function GameScene() {
   }, [gameState]);
 
   useEffect(() => {
-    // New Audio URLs
+    // Definitive Weapon Audio
     const rifleUrl = "https://cdn.freesound.org/previews/855/855654_11861213-lq.mp3";
     const shotgunUrl = "https://cdn.freesound.org/previews/668/668353_11535496-lq.mp3";
     const ak47Url = "https://cdn.freesound.org/previews/507/507137_10816912-lq.mp3";
@@ -99,8 +99,8 @@ export default function GameScene() {
 
     riflePoolRef.current = createPool(rifleUrl, 10);
     shotgunPoolRef.current = createPool(shotgunUrl, 10);
-    ak47PoolRef.current = createPool(ak47Url, 20); // Large pool for full-auto
-    zombieSoundPoolRef.current = createPool(zombieUrl, 10);
+    ak47PoolRef.current = createPool(ak47Url, 20); 
+    zombieSoundPoolRef.current = createPool(zombieUrl, 15);
   }, []);
 
   const toggleMute = useCallback(() => {
@@ -541,12 +541,17 @@ export default function GameScene() {
     
     containerRef.current?.addEventListener('mousedown', () => {
       engineRef.current.isFiring = true;
-      try {
-        if (typeof containerRef.current?.requestPointerLock === 'function') {
-          containerRef.current.requestPointerLock();
+      
+      // Robust guarded pointer lock request to prevent SecurityError in sandboxed environments
+      if (typeof containerRef.current?.requestPointerLock === 'function') {
+        try {
+          const promise = containerRef.current.requestPointerLock() as any;
+          if (promise && typeof promise.catch === 'function') {
+            promise.catch(() => { /* Environment restricted - silent fail */ });
+          }
+        } catch (e) {
+          /* Environment restricted - silent fail */
         }
-      } catch (e) {
-        // Handle security errors silently
       }
       handleShoot();
     });
@@ -765,4 +770,3 @@ export default function GameScene() {
     </div>
   );
 }
-
