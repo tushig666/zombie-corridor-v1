@@ -315,6 +315,7 @@ export default function GameScene() {
 
     const rWall = lWall.clone();
     rWall.position.x = CORRIDOR_WIDTH / 2 + 0.1;
+    rWall.position.y = CORRIDOR_HEIGHT / 2;
     rWall.receiveShadow = true;
     group.add(rWall);
 
@@ -365,7 +366,7 @@ export default function GameScene() {
 
   const createCollapseWall = () => {
     const { wallGroup, wallGrid, wallLight, scene } = engineRef.current;
-    const wallGeo = new THREE.PlaneGeometry(16, 18); // Increased height from 12 to 18 (1.5x)
+    const wallGeo = new THREE.PlaneGeometry(16, 18);
     const wallMat = new THREE.MeshStandardMaterial({
       color: 0xff0000,
       emissive: 0xff003c,
@@ -388,7 +389,7 @@ export default function GameScene() {
     for (let i = 0; i < 8; i++) {
       const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 16), cylinderMat.clone());
       bar.rotation.z = Math.PI / 2;
-      bar.position.y = -9 + i * 2.6; // Adjusted y-start and step for 1.5x height
+      bar.position.y = -9 + i * 2.6;
       wallGrid.add(bar);
     }
     for (let i = 0; i < 7; i++) {
@@ -537,8 +538,8 @@ export default function GameScene() {
 
     scene.add(ambientLight);
 
-    player.position.set(0, 4.2, 0); // Eye level raised for 1.5x scaling
-    player.rotation.y = Math.PI; // CRITICAL: Face positive Z direction (the corridor)
+    player.position.set(0, 4.2, 0); 
+    player.rotation.y = Math.PI; // Correctly face forward into corridor (+Z)
     camera.rotation.order = 'YXZ';
     camera.rotation.y = 0; 
     player.add(camera);
@@ -651,10 +652,13 @@ export default function GameScene() {
 
       const moveDir = new THREE.Vector3();
       const keys = engineRef.current.keysPressed;
-      if (keys['KeyW']) moveDir.z += 1;
-      if (keys['KeyS']) moveDir.z -= 1;
-      if (keys['KeyA']) moveDir.x += 1;
-      if (keys['KeyD']) moveDir.x -= 1;
+      
+      // Standard local axis movement (W:Forward, S:Back, A:Left, D:Right)
+      // Since player is rotated 180 (Math.PI), we map local -Z to World +Z (Forward)
+      if (keys['KeyW']) moveDir.z -= 1;
+      if (keys['KeyS']) moveDir.z += 1;
+      if (keys['KeyA']) moveDir.x -= 1;
+      if (keys['KeyD']) moveDir.x += 1;
 
       if (moveDir.length() > 0) {
         moveDir.normalize().applyEuler(new THREE.Euler(0, player.rotation.y, 0));
@@ -741,7 +745,7 @@ export default function GameScene() {
     segments.forEach(s => { scene.remove(s.mesh); s.mesh.traverse(obj => { if (obj instanceof THREE.Mesh) { obj.geometry.dispose(); if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose()); else obj.material.dispose(); } }); });
     engineRef.current.segments = [];
     player.position.set(0, 4.2, 0);
-    player.rotation.y = Math.PI; // CRITICAL: Face forward into corridor (+Z)
+    player.rotation.y = Math.PI; // Correctly face forward into corridor (+Z)
     camera.rotation.y = 0;
     
     const toRemove = weaponGroup.children.filter(child => child instanceof THREE.Group && child !== engineRef.current.muzzleFlashMesh);
