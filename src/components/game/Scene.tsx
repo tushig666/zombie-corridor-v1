@@ -140,7 +140,6 @@ export default function GameScene() {
     const group = new THREE.Group();
     const metalMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.9, roughness: 0.1 });
     const woodMat = new THREE.MeshStandardMaterial({ color: 0x3d2b1f, roughness: 0.9 });
-    const emissionMat = new THREE.MeshStandardMaterial({ color: 0xff003c, emissive: 0xff003c, emissiveIntensity: 3.0 });
 
     if (type === 'Standard') {
       const body = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.2, 0.6), metalMat);
@@ -149,13 +148,13 @@ export default function GameScene() {
       barrel.position.set(0, 0.05, 0.4);
       group.add(body, barrel);
     } else if (type === 'Shotgun') {
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.25, 0.7), metalMat);
+      const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.25, 0.7), metalMat);
       const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.8), metalMat);
       barrel.rotation.x = Math.PI / 2;
       barrel.position.set(0, 0.05, 0.5);
       const pump = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.3), metalMat);
       pump.position.set(0, -0.1, 0.4);
-      group.add(body, barrel, pump);
+      group.add(receiver, barrel, pump);
     } else if (type === 'AK47') {
       const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.22, 0.8), metalMat);
       const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.0), metalMat);
@@ -324,7 +323,7 @@ export default function GameScene() {
   };
 
   const handleShoot = () => {
-    const { raycaster, camera, zombies, weaponGroup, scene, muzzleFlash, muzzleFlashMesh } = engineRef.current;
+    const { raycaster, camera, zombies, weaponGroup, muzzleFlash, muzzleFlashMesh } = engineRef.current;
     const current = stateRef.current;
 
     if (performance.now() < current.nextShotTime) return;
@@ -358,7 +357,7 @@ export default function GameScene() {
       
       const zombie = zombies.find(z => z.mesh === targetMesh);
       if (zombie) {
-        // Shotgun deals massive damage to one-shot Walkers (3.5 > 3.0)
+        // Shotgun deals 3.5 damage, ensuring one-shot on 3HP walkers
         const damage = current.weaponType === 'Shotgun' ? 3.5 : 1.0;
         zombie.hp -= damage;
         zombie.mesh.position.z += 1.5;
@@ -375,7 +374,7 @@ export default function GameScene() {
               [zombie.type]: (prev.killsByType[zombie.type] || 0) + 1
             }
           }));
-          scene.remove(zombie.mesh);
+          engineRef.current.scene.remove(zombie.mesh);
         }
       }
     }
@@ -450,7 +449,7 @@ export default function GameScene() {
         try {
           containerRef.current?.requestPointerLock();
         } catch (e) {
-          // Silently handle cases where pointer lock is restricted (e.g. sandboxed environments)
+          // Silent catch for security errors in sandboxed frames
         }
       }
       handleShoot();
@@ -469,7 +468,6 @@ export default function GameScene() {
       const newTimeInStage = current.progression.timeInCurrentStage + delta;
       if (newTimeInStage >= current.progression.stageDurationThreshold) {
         const nextStage = current.progression.currentStage + 1;
-        // 1.25x for stage 2, then +0.25 per stage
         const multiplier = 1.0 + (nextStage > 1 ? 0.25 + (nextStage - 2) * 0.25 : 0);
         const spawnCap = Math.round(INITIAL_GAME_STATE.progression.spawnCap * (1.8 * nextStage));
         const spawnInterval = Math.max(0.3, 3.0 / multiplier);
@@ -514,9 +512,7 @@ export default function GameScene() {
       const moveDir = new THREE.Vector3();
       const keys = engineRef.current.keysPressed;
       
-      // forward vector points towards zombies (+Z when rotation is PI)
       const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
-      // right vector for strafing
       const right = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
 
       if (keys['KeyW']) moveDir.add(forward);
