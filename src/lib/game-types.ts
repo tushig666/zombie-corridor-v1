@@ -10,11 +10,11 @@ export interface ZombieStats {
 }
 
 export const ZOMBIE_CLASSES: Record<ZombieType, ZombieStats> = {
-  // Scales calibrated for tall human-sized confrontation (eye-to-eye or taller than player at 4.2m)
-  Walker: { type: 'Walker', baseHp: 3, baseSpeed: 21.6, scoreValue: 10, scale: 3.4 },
-  Runner: { type: 'Runner', baseHp: 2, baseSpeed: 38.4, scoreValue: 15, scale: 3.2 },
-  Tank: { type: 'Tank', baseHp: 6, baseSpeed: 14.4, scoreValue: 50, scale: 4.8 },
-  Elite: { type: 'Elite', baseHp: 8, baseSpeed: 25.6, scoreValue: 100, scale: 4.0 },
+  // Scales calibrated for tall human-sized confrontation, now increased by 1.8x global factor
+  Walker: { type: 'Walker', baseHp: 3, baseSpeed: 21.6, scoreValue: 10, scale: 6.12 },
+  Runner: { type: 'Runner', baseHp: 2, baseSpeed: 38.4, scoreValue: 15, scale: 5.76 },
+  Tank: { type: 'Tank', baseHp: 6, baseSpeed: 14.4, scoreValue: 50, scale: 8.64 },
+  Elite: { type: 'Elite', baseHp: 8, baseSpeed: 25.6, scoreValue: 100, scale: 7.2 },
 };
 
 export interface ProgressionEngine {

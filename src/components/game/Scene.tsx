@@ -509,7 +509,7 @@ export default function GameScene() {
     player.position.set(0, 0, 0); 
     player.rotation.y = Math.PI; 
     camera.rotation.order = 'YXZ';
-    camera.position.set(0, 4.2, 0); 
+    camera.position.set(0, 7.56, 0); 
     player.add(camera);
     scene.add(player);
 
@@ -586,7 +586,7 @@ export default function GameScene() {
         let spawnCap = Math.round(INITIAL_GAME_STATE.progression.spawnCap * (1.5 * nextStage));
         let spawnInterval = Math.max(0.4, 3.0 / multiplier);
 
-        // Stage 4+ Protocol: 1.5x spawn rate increase
+        // Stage 4 Protocol: 1.5x spawn rate increase
         if (nextStage >= 4) {
           spawnInterval /= 1.5; 
         }
@@ -648,7 +648,7 @@ export default function GameScene() {
         moveDir.normalize();
         player.position.add(moveDir.multiplyScalar(current.speed * delta));
         engineRef.current.bobTimer += delta * 12.0;
-        camera.position.y = 4.2 + Math.sin(engineRef.current.bobTimer) * 0.08;
+        camera.position.y = 7.56 + Math.sin(engineRef.current.bobTimer) * 0.144;
       }
 
       player.position.x = Math.max(-CORRIDOR_WIDTH / 2 + 1.8, Math.min(CORRIDOR_WIDTH / 2 - 1.8, player.position.x));
@@ -736,7 +736,7 @@ export default function GameScene() {
     player.position.set(0, 0, 0);
     player.rotation.y = Math.PI;
     camera.rotation.x = 0;
-    camera.position.set(0, 4.2, 0);
+    camera.position.set(0, 7.56, 0);
     for (let i = 0; i < 4; i++) {
       engineRef.current.segments.push(createSegment(i * SEGMENT_LENGTH));
     }
