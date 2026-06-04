@@ -42,6 +42,11 @@ export interface GameState {
   wallBaseSpeed: number;
   wallCurrentSpeed: number;
   wallMaxDistanceBehind: number;
+  // Stats for AI review
+  shotsFired: number;
+  shotsHit: number;
+  killsByType: Record<string, number>;
+  startTime: number;
 }
 
 export const INITIAL_GAME_STATE: GameState = {
@@ -69,4 +74,13 @@ export const INITIAL_GAME_STATE: GameState = {
   wallBaseSpeed: 3.5,
   wallCurrentSpeed: 3.5,
   wallMaxDistanceBehind: 35,
+  shotsFired: 0,
+  shotsHit: 0,
+  killsByType: {
+    Walker: 0,
+    Runner: 0,
+    Tank: 0,
+    Elite: 0
+  },
+  startTime: 0,
 };

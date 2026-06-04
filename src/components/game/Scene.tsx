@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { GameState, INITIAL_GAME_STATE, ZOMBIE_CLASSES, ZombieType } from '@/lib/game-types';
 import HUD from './HUD';
 import GameOver from './GameOver';
+import { postGamePerformanceReview, PostGamePerformanceReviewOutput } from '@/ai/flows/post-game-performance-review-flow';
 
 // Constants
 const SEGMENT_LENGTH = 30;
@@ -41,6 +42,7 @@ export default function GameScene() {
   const flashRef = useRef<HTMLDivElement>(null);
   const [gameState, setGameState] = useState<GameState>(INITIAL_GAME_STATE);
   const [distToWall, setDistToWall] = useState(20);
+  const [review, setReview] = useState<PostGamePerformanceReviewOutput | null>(null);
   
   // Engine Refs
   const engineRef = useRef({
@@ -181,7 +183,8 @@ export default function GameScene() {
     
     setGameState(prev => ({ 
       ...prev, 
-      nextShotTime: performance.now() + prev.shotCooldown 
+      nextShotTime: performance.now() + prev.shotCooldown,
+      shotsFired: prev.shotsFired + 1
     }));
 
     // Recoil
@@ -206,6 +209,8 @@ export default function GameScene() {
         zombie.hp -= 1;
         zombie.mesh.position.z += 1.5;
 
+        setGameState(prev => ({ ...prev, shotsHit: prev.shotsHit + 1 }));
+
         // Hit Flash
         const originalMat = (hit.object as THREE.Mesh).material;
         (hit.object as THREE.Mesh).material = new THREE.MeshBasicMaterial({ color: 0xffffff });
@@ -229,10 +234,40 @@ export default function GameScene() {
 
         if (zombie.hp <= 0) {
           zombie.isDead = true;
-          setGameState(prev => ({ ...prev, score: prev.score + zombie.scoreValue }));
+          setGameState(prev => ({ 
+            ...prev, 
+            score: prev.score + zombie.scoreValue,
+            killsByType: {
+              ...prev.killsByType,
+              [zombie.type]: prev.killsByType[zombie.type] + 1
+            }
+          }));
           scene.remove(zombie.mesh);
         }
       }
+    }
+  };
+
+  const handleGameOver = async () => {
+    const finalState = stateRef.current;
+    setGameState(prev => ({ ...prev, isGameOver: true, isGameActive: false }));
+    document.exitPointerLock();
+
+    // Trigger AI Performance Review
+    const survivalTime = Math.floor((performance.now() - finalState.startTime) / 1000);
+    const accuracy = finalState.shotsFired > 0 ? (finalState.shotsHit / finalState.shotsFired) * 100 : 0;
+
+    try {
+      const result = await postGamePerformanceReview({
+        zombiesKilled: finalState.killsByType,
+        accuracy: Math.round(accuracy),
+        distanceTraveled: finalState.distance,
+        survivalTime,
+        highestScore: finalState.score
+      });
+      setReview(result);
+    } catch (e) {
+      console.error("AI Review failed", e);
     }
   };
 
@@ -280,11 +315,18 @@ export default function GameScene() {
     window.addEventListener('keyup', (e) => engineRef.current.keysPressed[e.code] = false);
     
     containerRef.current?.addEventListener('mousedown', (e) => {
+      const current = stateRef.current;
+      if (!current.isGameActive || current.isGameOver) return;
+
       if (document.pointerLockElement !== containerRef.current) {
-        containerRef.current?.requestPointerLock();
-      } else {
-        handleShoot();
+        try {
+          containerRef.current?.requestPointerLock();
+        } catch (err) {
+          // If sandboxed and blocked, just continue - the user can still click-to-shoot
+          console.warn("Pointer lock blocked by environment. Fallback to click-aim active.");
+        }
       }
+      handleShoot();
     });
 
     window.addEventListener('mousemove', (e) => {
@@ -349,8 +391,7 @@ export default function GameScene() {
       setDistToWall(player.position.z - current.wallZ);
 
       if (player.position.z <= current.wallZ) {
-        setGameState(prev => ({ ...prev, hp: 0, isGameOver: true }));
-        document.exitPointerLock();
+        handleGameOver();
       }
 
       // 4. Procedural Corridor
@@ -402,8 +443,8 @@ export default function GameScene() {
           setGameState(prev => {
             const newHp = prev.hp - 12;
             if (newHp <= 0) {
-              document.exitPointerLock();
-              return { ...prev, hp: 0, isGameOver: true, isGameActive: false };
+              handleGameOver();
+              return { ...prev, hp: 0 };
             }
             return { ...prev, hp: newHp, lastDamageTime: performance.now() };
           });
@@ -451,11 +492,13 @@ export default function GameScene() {
       engineRef.current.segments.push(createSegment(i * SEGMENT_LENGTH));
     }
 
+    setReview(null);
     setGameState({ 
       ...INITIAL_GAME_STATE, 
       isGameActive: true, 
       lastStageUpdateTime: performance.now(),
-      lastSpawnTime: performance.now()
+      lastSpawnTime: performance.now(),
+      startTime: performance.now()
     });
   };
 
@@ -492,7 +535,7 @@ export default function GameScene() {
       {gameState.isGameOver && (
         <GameOver 
           state={gameState} 
-          review={null} // Analysis logic can be re-added here
+          review={review} 
           onRestart={restartGame} 
           onQuit={() => setGameState(INITIAL_GAME_STATE)} 
         />
