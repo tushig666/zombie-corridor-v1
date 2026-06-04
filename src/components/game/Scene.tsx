@@ -10,7 +10,7 @@ import GameOver from './GameOver';
 // Constants
 const SEGMENT_LENGTH = 40;
 const CORRIDOR_WIDTH = 12;
-const CORRIDOR_HEIGHT = 13.5; // Increased 1.5x from 9
+const CORRIDOR_HEIGHT = 13.5; 
 
 interface ZombieInstance {
   mesh: THREE.Group;
@@ -64,7 +64,6 @@ export default function GameScene() {
     muzzleFlashMesh: null as THREE.Mesh | null,
     bobTimer: 0,
     raycaster: new THREE.Raycaster(),
-    // Collapse Wall components
     wallGroup: new THREE.Group(),
     wallGrid: new THREE.Group(),
     wallLight: new THREE.SpotLight(0xff003c, 8.0, 60),
@@ -77,7 +76,6 @@ export default function GameScene() {
     stateRef.current = gameState;
   }, [gameState]);
 
-  // Pre-allocate audio pools
   useEffect(() => {
     const gunshotUrl = "https://www.myinstants.com/media/sounds/gsht-44263.mp3";
     const gPool: HTMLAudioElement[] = [];
@@ -138,7 +136,7 @@ export default function GameScene() {
     }
   };
 
-  const createWeaponModel = (type: 'Standard' | 'AK47') => {
+  const createWeaponModel = (type: 'Standard' | 'Shotgun' | 'AK47') => {
     const group = new THREE.Group();
     const metalMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.9, roughness: 0.1 });
     const detailMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 1.0, roughness: 0.2 });
@@ -154,8 +152,17 @@ export default function GameScene() {
       const glowRail = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.65), emissionMat);
       glowRail.position.set(0, 0.12, 0.1);
       group.add(gunBody, barrel1, barrel2, glowRail);
+    } else if (type === 'Shotgun') {
+      const gunBody = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.3, 0.6), metalMat);
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.7), detailMat);
+      barrel.rotation.x = Math.PI / 2;
+      barrel.position.set(0, 0.05, 0.4);
+      const pump = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.35), detailMat);
+      pump.position.set(0, -0.15, 0.3);
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.5), emissionMat);
+      rail.position.set(0, 0.15, 0.1);
+      group.add(gunBody, barrel, pump, rail);
     } else {
-      // AK-47 Design
       const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.3, 0.9), metalMat);
       const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.2), detailMat);
       barrel.rotation.x = Math.PI / 2;
@@ -192,15 +199,10 @@ export default function GameScene() {
       if (rand < 0.7) type = 'Walker';
       else if (rand < 0.9) type = 'Runner';
       else type = 'Tank';
-    } else if (stage === 3) {
-      if (rand < 0.4) type = 'Walker';
-      else if (rand < 0.8) type = 'Runner';
-      else if (rand < 0.95) type = 'Tank';
-      else type = 'Elite';
     } else {
-      if (rand < 0.1) type = 'Walker';
-      else if (rand < 0.5) type = 'Runner';
-      else if (rand < 0.8) type = 'Tank';
+      if (rand < 0.3) type = 'Walker';
+      else if (rand < 0.7) type = 'Runner';
+      else if (rand < 0.9) type = 'Tank';
       else type = 'Elite';
     }
 
@@ -369,7 +371,7 @@ export default function GameScene() {
 
   const createCollapseWall = () => {
     const { wallGroup, wallGrid, wallLight, scene } = engineRef.current;
-    const wallGeo = new THREE.PlaneGeometry(16, 20); // Scaled height
+    const wallGeo = new THREE.PlaneGeometry(16, 20); 
     const wallMat = new THREE.MeshStandardMaterial({
       color: 0xff0000,
       emissive: 0xff003c,
@@ -460,8 +462,10 @@ export default function GameScene() {
       
       const zombie = zombies.find(z => z.mesh === targetMesh);
       if (zombie) {
-        zombie.hp -= 1;
-        zombie.mesh.position.z += 2.0;
+        // Shotgun deals 1.5 damage (kills Walker in 2 shots), others deal 1.0
+        const damage = current.weaponType === 'Shotgun' ? 1.5 : 1.0;
+        zombie.hp -= damage;
+        zombie.mesh.position.z += current.weaponType === 'Shotgun' ? 3.0 : 2.0;
 
         setGameState(prev => ({ ...prev, shotsHit: prev.shotsHit + 1 }));
 
@@ -542,7 +546,7 @@ export default function GameScene() {
     scene.add(ambientLight);
 
     player.position.set(0, 4.2, 0); 
-    player.rotation.y = Math.PI; // Face corridor (+Z)
+    player.rotation.y = Math.PI; 
     camera.rotation.order = 'YXZ';
     camera.rotation.y = 0; 
     player.add(camera);
@@ -610,18 +614,27 @@ export default function GameScene() {
       const newTimeInStage = current.progression.timeInCurrentStage + delta;
       if (newTimeInStage >= current.progression.stageDurationThreshold) {
         const nextStage = current.progression.currentStage + 1;
+        // 1.25x for stage 2, then +0.25 per stage
         const multiplier = 1.0 + (nextStage > 1 ? 0.25 + (nextStage - 2) * 0.25 : 0);
         
-        const spawnCap = Math.min(30, current.progression.spawnCap * 2);
-        const spawnInterval = Math.max(0.35, 3.0 / multiplier);
-        const wallSpeed = current.wallBaseSpeed * multiplier;
+        // Aggressive spawn scaling
+        const spawnCap = Math.round(INITIAL_GAME_STATE.progression.spawnCap * (1.5 * nextStage));
+        const spawnInterval = Math.max(0.2, 3.0 / (multiplier * 2));
+        const wallSpeed = INITIAL_GAME_STATE.wallBaseSpeed * multiplier;
 
-        const titles = ['CONTAINMENT BREACH', 'HORDE DETECTED', 'CRITICAL OVERRUN', 'OUTBREAK MAXIMUM', 'SURVIVAL IMPOSSIBLE'];
+        const titles = ['CONTAINMENT BREACH', 'SHOTGUN AUTHORIZED', 'AK-47 REINFORCEMENT', 'OUTBREAK MAXIMUM', 'SURVIVAL IMPOSSIBLE'];
         const newTitle = titles[Math.min(titles.length - 1, nextStage - 1)];
 
         let weaponType = current.weaponType;
         let shotCooldown = current.shotCooldown;
-        if (nextStage === 3) {
+        
+        if (nextStage === 2) {
+          weaponType = 'Shotgun';
+          shotCooldown = 400; // Slower fire but 1.5x damage
+          const toRemove = weaponGroup.children.filter(child => child instanceof THREE.Group && child !== engineRef.current.muzzleFlashMesh);
+          toRemove.forEach(child => weaponGroup.remove(child));
+          weaponGroup.add(createWeaponModel('Shotgun'));
+        } else if (nextStage === 3) {
           weaponType = 'AK47';
           shotCooldown = 120;
           const toRemove = weaponGroup.children.filter(child => child instanceof THREE.Group && child !== engineRef.current.muzzleFlashMesh);
@@ -656,7 +669,6 @@ export default function GameScene() {
       const moveDir = new THREE.Vector3();
       const keys = engineRef.current.keysPressed;
       
-      // Fixed WASD by aligning with world +Z facing orientation
       const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
       const right = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
 
@@ -750,7 +762,7 @@ export default function GameScene() {
     segments.forEach(s => { scene.remove(s.mesh); s.mesh.traverse(obj => { if (obj instanceof THREE.Mesh) { obj.geometry.dispose(); if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose()); else obj.material.dispose(); } }); });
     engineRef.current.segments = [];
     player.position.set(0, 4.2, 0);
-    player.rotation.y = Math.PI; // Face forward (+Z)
+    player.rotation.y = Math.PI; 
     camera.rotation.y = 0;
     
     const toRemove = weaponGroup.children.filter(child => child instanceof THREE.Group && child !== engineRef.current.muzzleFlashMesh);
@@ -777,7 +789,6 @@ export default function GameScene() {
       <audio ref={bgMusicRef} src="https://www.myinstants.com/media/sounds/hardcore-trance-8.mp3" loop style={{ display: 'none' }} />
       <div id="damage-flash" ref={flashRef} />
       
-      {/* Mute Button HUD */}
       <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 100, pointerEvents: 'auto' }}>
         <button 
           className="btn" 
@@ -795,7 +806,7 @@ export default function GameScene() {
           <button className="btn" onClick={restartGame}>ENTER LOCKDOWN ZONE</button>
           <div className="instructions-block">
             <span style={{ color: 'var(--red-emergency)', fontWeight: 'bold' }}>MISSION OBJECTIVE:</span>
-            <p style={{ fontSize: '0.85rem', margin: '10px 0' }}>SURVIVE THE HORDES. REACH STAGE 3 FOR AK-47 REINFORCEMENT. AVOID COLLAPSE WALL.</p>
+            <p style={{ fontSize: '0.85rem', margin: '10px 0' }}>SURVIVE THE HORDES. REACH STAGE 2 FOR SHOTGUN. REACH STAGE 3 FOR AK-47. AVOID COLLAPSE WALL.</p>
             <table>
               <tbody>
                 <tr><td><span className="key-highlight">W, A, S, D</span></td><td>TACTICAL MOVEMENT</td></tr>
@@ -812,7 +823,7 @@ export default function GameScene() {
         <div className="stage-alert">
           ALERT: {gameState.stageTitle}
           <div className="stage-multiplier">
-            {gameState.weaponType === 'AK47' && <div style={{ color: '#00ff66' }}>AK-47 UNLOCKED</div>}
+            {gameState.weaponType !== 'Standard' && <div style={{ color: '#00ff66' }}>{gameState.weaponType.toUpperCase()} UNLOCKED</div>}
             MULTIPLIER {gameState.progression.globalDifficultyMultiplier.toFixed(2)}x
           </div>
         </div>

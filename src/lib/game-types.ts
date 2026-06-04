@@ -54,7 +54,7 @@ export interface GameState {
   stageTitle: string;
   showAlert: boolean;
   // Weapon
-  weaponType: 'Standard' | 'AK47';
+  weaponType: 'Standard' | 'Shotgun' | 'AK47';
 }
 
 export const INITIAL_GAME_STATE: GameState = {
@@ -72,8 +72,8 @@ export const INITIAL_GAME_STATE: GameState = {
   shotCooldown: 200,
   lastSpawnTime: 0,
   wallZ: -30,
-  wallBaseSpeed: 7.14,
-  wallCurrentSpeed: 7.14,
+  wallBaseSpeed: 9.28, // 1.3x increase from previous turn
+  wallCurrentSpeed: 9.28,
   wallMaxDistanceBehind: 45,
   shotsFired: 0,
   shotsHit: 0,
