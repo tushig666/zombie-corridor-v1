@@ -90,7 +90,6 @@ export default function GameScene() {
 
     const group = new THREE.Group();
     
-    // Materials
     const skinMat = new THREE.MeshStandardMaterial({ color: stats.color, roughness: 0.8, metalness: 0.1 });
     const clothingColors = [0xdd6b20, 0xe2e8f0, 0x2b6cb0];
     const clothingMat = new THREE.MeshStandardMaterial({ color: clothingColors[Math.floor(Math.random() * clothingColors.length)], roughness: 0.9 });
@@ -99,12 +98,10 @@ export default function GameScene() {
     const teethMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
     const ribMat = new THREE.MeshStandardMaterial({ color: 0xff3333, roughness: 0.9 });
 
-    // Head
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.44, 0.44), skinMat);
     head.position.y = 1.45;
     group.add(head);
 
-    // Eyes
     const lEye = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.05), eyeMat);
     lEye.position.set(-0.12, 1.55, 0.22);
     group.add(lEye);
@@ -112,12 +109,10 @@ export default function GameScene() {
     rEye.position.x = 0.12;
     group.add(rEye);
 
-    // Mouth
     const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.14, 0.04), mouthMat);
     mouth.position.set(0, 1.35, 0.22);
     group.add(mouth);
 
-    // Teeth
     const tTeeth = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.02, 0.01), teethMat);
     tTeeth.position.set(0, 1.38, 0.24);
     group.add(tTeeth);
@@ -125,17 +120,14 @@ export default function GameScene() {
     bTeeth.position.y = 1.32;
     group.add(bTeeth);
 
-    // Torso
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.75, 0.35), clothingMat);
     torso.position.y = 0.95;
     group.add(torso);
 
-    // Rib cage exposure
     const rib = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.25, 0.05), ribMat);
     rib.position.set(0, 0.95, 0.18);
     group.add(rib);
 
-    // Arms
     const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.65), skinMat);
     leftArm.position.set(-0.37, 1.2, 0.35);
     group.add(leftArm);
@@ -144,7 +136,6 @@ export default function GameScene() {
     rightArm.position.set(0.37, 1.2, 0.35);
     group.add(rightArm);
 
-    // Legs
     const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.6, 0.18), clothingMat);
     leftLeg.position.set(-0.2, 0.3, 0);
     group.add(leftLeg);
@@ -192,17 +183,14 @@ export default function GameScene() {
     const beamMat = new THREE.MeshStandardMaterial({ color: 0x0f1012, metalness: 0.8, roughness: 0.6 });
     const ledMat = new THREE.MeshStandardMaterial({ color: 0xff003c, emissive: 0xff002b, emissiveIntensity: 2.5 });
 
-    // Floor
     const floor = new THREE.Mesh(new THREE.BoxGeometry(CORRIDOR_WIDTH, 0.2, SEGMENT_LENGTH), floorMat);
     floor.position.y = -0.1;
     group.add(floor);
 
-    // Ceiling
     const ceiling = new THREE.Mesh(new THREE.BoxGeometry(CORRIDOR_WIDTH, 0.2, SEGMENT_LENGTH), ceilingMat);
     ceiling.position.y = CORRIDOR_HEIGHT;
     group.add(ceiling);
 
-    // Walls
     const lWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, CORRIDOR_HEIGHT, SEGMENT_LENGTH), wallMat);
     lWall.position.x = -CORRIDOR_WIDTH / 2 - 0.1;
     lWall.position.y = CORRIDOR_HEIGHT / 2;
@@ -212,7 +200,6 @@ export default function GameScene() {
     rWall.position.x = CORRIDOR_WIDTH / 2 + 0.1;
     group.add(rWall);
 
-    // Pillars & Beams
     for (let i = -SEGMENT_LENGTH / 2 + 3; i < SEGMENT_LENGTH / 2; i += 6) {
       const lPillar = new THREE.Mesh(new THREE.BoxGeometry(0.4, CORRIDOR_HEIGHT, 0.6), beamMat);
       lPillar.position.set(-CORRIDOR_WIDTH / 2, CORRIDOR_HEIGHT / 2, i);
@@ -227,7 +214,6 @@ export default function GameScene() {
       group.add(beam);
     }
 
-    // LED Rails
     const railPositions = [
       { x: -CORRIDOR_WIDTH / 2, y: 0.1 },
       { x: CORRIDOR_WIDTH / 2, y: 0.1 },
@@ -240,13 +226,12 @@ export default function GameScene() {
       group.add(rail);
     });
 
-    // Ceiling Lamps
     for (let i = -SEGMENT_LENGTH / 2 + 5; i < SEGMENT_LENGTH / 2; i += 10) {
       const lamp = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.05, 1.2), new THREE.MeshBasicMaterial({ color: 0xff0022 }));
       lamp.position.set(0, CORRIDOR_HEIGHT - 0.05, i);
       group.add(lamp);
 
-      const light = new THREE.PointLight(0xff0000, 1.2, 14);
+      const light = new THREE.PointLight(0xff3333, 2.0, 18);
       light.position.set(0, CORRIDOR_HEIGHT - 0.5, i);
       group.add(light);
     }
@@ -273,22 +258,18 @@ export default function GameScene() {
       shotsFired: prev.shotsFired + 1
     }));
 
-    // Recoil
     weaponGroup.position.z = 0.15;
     weaponGroup.rotation.x = 0.2;
 
-    // Muzzle Flash
     muzzleFlash.intensity = 3.5;
     setTimeout(() => muzzleFlash.intensity = 0, 60);
 
-    // Hitscan
     raycaster.setFromCamera({ x: 0, y: 0 }, camera);
     const targets = zombies.filter(z => !z.isDead).map(z => z.mesh);
     const intersects = raycaster.intersectObjects(targets, true);
 
     if (intersects.length > 0) {
       const hit = intersects[0];
-      // Walk up to find the zombie instance
       let targetMesh = hit.object;
       while (targetMesh.parent && !(targetMesh instanceof THREE.Group && zombies.some(z => z.mesh === targetMesh))) {
         targetMesh = targetMesh.parent;
@@ -302,7 +283,6 @@ export default function GameScene() {
 
         setGameState(prev => ({ ...prev, shotsHit: prev.shotsHit + 1 }));
 
-        // Hit Flash override
         const flashMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 8.0 });
         zombie.mesh.traverse(obj => {
           if (obj instanceof THREE.Mesh) obj.material = flashMat;
@@ -319,7 +299,6 @@ export default function GameScene() {
           }
         }, 80);
 
-        // Particles
         for (let i = 0; i < 15; i++) {
           const pGeo = new THREE.BoxGeometry(0.05, 0.05, 0.05);
           const pMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
@@ -358,7 +337,6 @@ export default function GameScene() {
       document.exitPointerLock();
     } catch(e) {}
 
-    // Trigger AI Performance Review
     const survivalTime = Math.floor((performance.now() - finalState.startTime) / 1000);
     const accuracy = finalState.shotsFired > 0 ? (finalState.shotsHit / finalState.shotsFired) * 100 : 0;
 
@@ -387,18 +365,16 @@ export default function GameScene() {
     containerRef.current?.appendChild(renderer.domElement);
     engineRef.current.renderer = renderer;
 
-    scene.background = new THREE.Color(0x050101);
-    scene.fog = new THREE.FogExp2(0x050101, 0.05);
+    scene.background = new THREE.Color(0x0a0505);
+    scene.fog = new THREE.FogExp2(0x0a0505, 0.015);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.05);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.15);
     scene.add(ambient);
 
-    // Player setup
     player.position.set(0, 1.8, 0);
     player.add(camera);
     scene.add(player);
 
-    // Weapon setup
     const gunGeo = new THREE.BoxGeometry(0.1, 0.1, 0.4);
     const gunMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
     const gun = new THREE.Mesh(gunGeo, gunMat);
@@ -410,12 +386,10 @@ export default function GameScene() {
     
     camera.add(weaponGroup);
 
-    // Initial Segments
     for (let i = 0; i < 4; i++) {
       segments.push(createSegment(i * SEGMENT_LENGTH));
     }
 
-    // Input
     const onKeyDown = (e: KeyboardEvent) => engineRef.current.keysPressed[e.code] = true;
     const onKeyUp = (e: KeyboardEvent) => engineRef.current.keysPressed[e.code] = false;
     const onMouseMove = (e: MouseEvent) => {
@@ -452,7 +426,6 @@ export default function GameScene() {
         return;
       }
 
-      // Difficulty Scaling
       if (performance.now() - current.lastStageUpdateTime > current.stageDuration) {
         setGameState(prev => ({
           ...prev,
@@ -462,7 +435,6 @@ export default function GameScene() {
         }));
       }
 
-      // Player Movement
       const moveDir = new THREE.Vector3();
       const keys = engineRef.current.keysPressed;
       if (keys['KeyW']) moveDir.z -= 1;
@@ -474,17 +446,14 @@ export default function GameScene() {
         moveDir.normalize().applyEuler(new THREE.Euler(0, player.rotation.y, 0));
         player.position.add(moveDir.multiplyScalar(current.speed * delta));
         
-        // Head Bob
         engineRef.current.bobTimer += delta * 12.0;
         camera.position.y = 1.8 + Math.sin(engineRef.current.bobTimer) * 0.08;
       } else {
         camera.position.y = THREE.MathUtils.lerp(camera.position.y, 1.8, 0.1);
       }
 
-      // Boundary Clamping
       player.position.x = Math.max(-3.7, Math.min(3.7, player.position.x));
 
-      // Wall Logic
       const wallSpeed = current.wallBaseSpeed + (current.stage * 0.4);
       setGameState(prev => {
         let newWallZ = prev.wallZ + wallSpeed * delta;
@@ -499,7 +468,6 @@ export default function GameScene() {
         handleGameOver();
       }
 
-      // Procedural Corridor
       if (player.position.z - engineRef.current.segments[0].endZ > 15) {
         const old = engineRef.current.segments.shift()!;
         scene.remove(old.mesh);
@@ -514,13 +482,11 @@ export default function GameScene() {
         engineRef.current.segments.push(createSegment(last.endZ));
       }
 
-      // Spawning
       if (performance.now() - current.lastSpawnTime > current.currentSpawnInterval && engineRef.current.zombies.length < current.maxActiveZombies) {
         spawnZombie();
         setGameState(prev => ({ ...prev, lastSpawnTime: performance.now() }));
       }
 
-      // Zombie AI & Combat
       engineRef.current.zombies = engineRef.current.zombies.filter(z => {
         if (z.isDead) return false;
         if (z.mesh.position.z <= current.wallZ) {
@@ -536,12 +502,10 @@ export default function GameScene() {
         z.mesh.position.add(toPlayer.multiplyScalar(z.speed * delta));
         z.mesh.lookAt(player.position.x, 0, player.position.z);
 
-        // Animation
         const armSwing = Math.sin(performance.now() * 0.005 * z.speed) * 0.4;
         z.leftArm.rotation.x = armSwing;
         z.rightArm.rotation.x = -armSwing;
 
-        // Damage
         if (dist < 1.6 && performance.now() - current.lastDamageTime > current.zombieDamageInterval) {
           triggerDamageFlash();
           setGameState(prev => {
@@ -556,7 +520,6 @@ export default function GameScene() {
         return true;
       });
 
-      // Particles & Recoil
       engineRef.current.particles = engineRef.current.particles.filter(p => {
         p.mesh.position.add(p.velocity.clone().multiplyScalar(delta));
         p.velocity.y -= 9.8 * delta;
