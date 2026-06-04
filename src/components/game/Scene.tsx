@@ -93,62 +93,67 @@ export default function GameScene() {
 
     const group = new THREE.Group();
     
-    const skinMat = new THREE.MeshStandardMaterial({ color: stats.color, roughness: 0.8, metalness: 0.1 });
-    const clothingColors = [0xdd6b20, 0xe2e8f0, 0x2b6cb0];
-    const clothingMat = new THREE.MeshStandardMaterial({ color: clothingColors[Math.floor(Math.random() * clothingColors.length)], roughness: 0.9 });
-    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x00f3ff });
+    // Unified "Creepy" Palette
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.9, metalness: 0.05 }); // Sickly pale gray
+    const clothingMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 1.0 }); // Dark, desaturated rags
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // Menacing Red
     const mouthMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-    const teethMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    const ribMat = new THREE.MeshStandardMaterial({ color: 0xff3333, roughness: 0.9 });
+    const teethMat = new THREE.MeshBasicMaterial({ color: 0xd1d5db }); // Dirty bone white
+    const goreMat = new THREE.MeshStandardMaterial({ color: 0x7f1d1d, roughness: 0.8 }); // Dried blood/gore
 
+    // Head - slightly tilted for creepiness
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.44, 0.44), skinMat);
     head.position.y = 1.45;
+    head.rotation.z = (Math.random() - 0.5) * 0.3;
     head.castShadow = true;
     group.add(head);
 
-    const lEye = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.05), eyeMat);
+    // Eyes - Glowing pinpricks
+    const lEye = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.05), eyeMat);
     lEye.position.set(-0.12, 1.55, 0.22);
     group.add(lEye);
     const rEye = lEye.clone();
     rEye.position.x = 0.12;
     group.add(rEye);
 
-    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.14, 0.04), mouthMat);
-    mouth.position.set(0, 1.35, 0.22);
+    // Mouth - wide and gaping
+    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.04), mouthMat);
+    mouth.position.set(0, 1.32, 0.22);
     group.add(mouth);
 
-    const tTeeth = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.02, 0.01), teethMat);
-    tTeeth.position.set(0, 1.38, 0.24);
-    group.add(tTeeth);
-    const bTeeth = tTeeth.clone();
-    bTeeth.position.y = 1.32;
-    group.add(bTeeth);
-
-    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.75, 0.35), clothingMat);
-    torso.position.y = 0.95;
+    // Torso - Spindly and distorted
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.8, 0.3), clothingMat);
+    torso.position.y = 0.9;
     torso.castShadow = true;
     group.add(torso);
 
-    const rib = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.25, 0.05), ribMat);
-    rib.position.set(0, 0.95, 0.18);
-    group.add(rib);
+    // Exposed Ribcage/Gore
+    const wound = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.4, 0.05), goreMat);
+    wound.position.set(0, 0.9, 0.16);
+    group.add(wound);
 
-    const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.65), skinMat);
-    leftArm.position.set(-0.37, 1.2, 0.35);
+    // Arms - Asymmetric and reaching
+    const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.75), skinMat);
+    leftArm.position.set(-0.35, 1.15, 0.3);
     leftArm.castShadow = true;
     group.add(leftArm);
 
-    const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.65), skinMat);
-    rightArm.position.set(0.37, 1.2, 0.35);
+    const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.85), skinMat); // Slightly longer
+    rightArm.position.set(0.35, 1.1, 0.35);
+    rightArm.rotation.y = 0.1;
     rightArm.castShadow = true;
     group.add(rightArm);
 
-    const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.6, 0.18), clothingMat);
-    leftLeg.position.set(-0.2, 0.3, 0);
+    // Legs - Hunched stance
+    const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.15), clothingMat);
+    leftLeg.position.set(-0.18, 0.3, 0);
+    leftLeg.rotation.x = 0.1;
     leftLeg.castShadow = true;
     group.add(leftLeg);
+    
     const rightLeg = leftLeg.clone();
-    rightLeg.position.x = 0.2;
+    rightLeg.position.x = 0.18;
+    rightLeg.rotation.x = -0.1;
     rightLeg.castShadow = true;
     group.add(rightLeg);
 
@@ -248,7 +253,7 @@ export default function GameScene() {
       lamp.position.set(0, CORRIDOR_HEIGHT - 0.05, i);
       group.add(lamp);
 
-      const light = new THREE.PointLight(0xff3333, 8.0, 30);
+      const light = new THREE.PointLight(0xff3333, 12.0, 30); // Increased intensity for better visibility
       light.position.set(0, CORRIDOR_HEIGHT - 0.5, i);
       group.add(light);
     }
@@ -288,17 +293,16 @@ export default function GameScene() {
       opacity: 1.0
     });
 
-    // Horizontal bars
+    // 15 bars as requested
     for (let i = 0; i < 8; i++) {
       const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 12), cylinderMat.clone());
       bar.rotation.z = Math.PI / 2;
       bar.position.y = -4 + i * 1.15;
       wallGrid.add(bar);
     }
-    // Vertical bars
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 7; i++) {
       const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 8), cylinderMat.clone());
-      bar.position.x = -6 + i * 1.7;
+      bar.position.x = -5 + i * 1.7;
       wallGrid.add(bar);
     }
     wallGroup.add(wallGrid);
@@ -310,7 +314,7 @@ export default function GameScene() {
     wallLight.castShadow = true;
     wallLight.shadow.mapSize.width = 1024;
     wallLight.shadow.mapSize.height = 1024;
-    wallLight.position.set(0, 0, 1); // Slightly in front of wall plane
+    wallLight.position.set(0, 0, 1);
     wallLight.target.position.set(0, 0, 20);
     wallGroup.add(wallLight);
     wallGroup.add(wallLight.target);
@@ -404,7 +408,6 @@ export default function GameScene() {
     if (isGameOverTriggered.current) return;
     isGameOverTriggered.current = true;
     
-    // Defer state update to avoid React warnings during render loops
     setTimeout(() => {
       setGameState(prev => ({ ...prev, isGameOver: true, isGameActive: false }));
       try {
@@ -429,24 +432,24 @@ export default function GameScene() {
     engineRef.current.renderer = renderer;
 
     scene.background = new THREE.Color(0x0a0505);
-    scene.fog = new THREE.FogExp2(0x0a0505, 0.012);
+    scene.fog = new THREE.FogExp2(0x0a0505, 0.008); // Reduced density for clarity
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+    const ambient = new THREE.AmbientLight(0xffffff, 1.2); // Increased ambient light
     scene.add(ambient);
 
     player.position.set(0, 1.8, 0);
-    player.rotation.y = Math.PI; // Face forward (+Z)
+    player.rotation.y = 0; // Face forward (+Z)
     player.add(camera);
     scene.add(player);
 
     const gunGeo = new THREE.BoxGeometry(0.1, 0.1, 0.4);
     const gunMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
     const gun = new THREE.Mesh(gunGeo, gunMat);
-    gun.position.set(0.3, -0.2, -0.4);
+    gun.position.set(0.3, -0.2, 0.4);
     gun.castShadow = true;
     weaponGroup.add(gun);
     
-    muzzleFlash.position.set(0.3, -0.2, -0.6);
+    muzzleFlash.position.set(0.3, -0.2, 0.6);
     weaponGroup.add(muzzleFlash);
     
     camera.add(weaponGroup);
@@ -477,14 +480,11 @@ export default function GameScene() {
 
       if (document.pointerLockElement !== containerRef.current) {
         try {
-          // Wrapped in a try/catch and handling potential promise rejection to stop security errors
           const result = containerRef.current?.requestPointerLock();
           if (result instanceof Promise) {
-            result.catch(() => { /* ignore sandbox rejection */ });
+            result.catch(() => {});
           }
-        } catch (err) {
-          // ignore sandboxed environment security errors
-        }
+        } catch (err) {}
       }
       handleShoot();
     });
@@ -510,10 +510,10 @@ export default function GameScene() {
 
       const moveDir = new THREE.Vector3();
       const keys = engineRef.current.keysPressed;
-      if (keys['KeyW']) moveDir.z -= 1; 
-      if (keys['KeyS']) moveDir.z += 1;
-      if (keys['KeyA']) moveDir.x -= 1;
-      if (keys['KeyD']) moveDir.x += 1;
+      if (keys['KeyW']) moveDir.z += 1; 
+      if (keys['KeyS']) moveDir.z -= 1;
+      if (keys['KeyA']) moveDir.x += 1;
+      if (keys['KeyD']) moveDir.x -= 1;
 
       if (moveDir.length() > 0) {
         moveDir.normalize().applyEuler(new THREE.Euler(0, player.rotation.y, 0));
@@ -547,7 +547,7 @@ export default function GameScene() {
 
       const dangerFactor = Math.max(0, 1 - (player.position.z - current.wallZ) / 35);
       scene.fog.color.setHSL(0, 1, 0.05 + dangerFactor * 0.1);
-      (scene.fog as THREE.FogExp2).density = 0.012 + dangerFactor * 0.05;
+      (scene.fog as THREE.FogExp2).density = 0.008 + dangerFactor * 0.05;
 
       if (player.position.z <= current.wallZ) {
         handleGameOver();
@@ -619,7 +619,7 @@ export default function GameScene() {
         return true;
       });
 
-      weaponGroup.position.z = THREE.MathUtils.lerp(weaponGroup.position.z, 0, 0.15);
+      weaponGroup.position.z = THREE.MathUtils.lerp(weaponGroup.position.z, 0.4, 0.15); // weapon baseline
       weaponGroup.rotation.x = THREE.MathUtils.lerp(weaponGroup.rotation.x, 0, 0.15);
 
       setGameState(prev => ({ ...prev, distance: Math.floor(player.position.z) }));
@@ -658,7 +658,7 @@ export default function GameScene() {
     engineRef.current.segments = [];
     
     player.position.set(0, 1.8, 0);
-    player.rotation.y = Math.PI; 
+    player.rotation.y = 0; 
     for (let i = 0; i < 4; i++) {
       engineRef.current.segments.push(createSegment(i * SEGMENT_LENGTH));
     }
@@ -727,4 +727,3 @@ export default function GameScene() {
     </div>
   );
 }
-
