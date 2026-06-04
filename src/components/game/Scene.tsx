@@ -494,7 +494,11 @@ export default function GameScene() {
 
     camera.add(weaponGroup);
     createCollapseWall();
-    for (let i = 0; i < 4; i++) segments.push(createSegment(i * SEGMENT_LENGTH));
+    
+    // Initial segments
+    for (let i = 0; i < 4; i++) {
+      segments.push(createSegment(i * SEGMENT_LENGTH));
+    }
 
     const onKeyDown = (e: KeyboardEvent) => {
       engineRef.current.keysPressed[e.code] = true;
@@ -515,7 +519,6 @@ export default function GameScene() {
     
     containerRef.current?.addEventListener('mousedown', () => {
       if (document.pointerLockElement !== containerRef.current) {
-        // ROBUST SECURITY FIX: Guarded requestPointerLock
         try {
           if (typeof containerRef.current?.requestPointerLock === 'function') {
             const promise = containerRef.current.requestPointerLock();
@@ -523,9 +526,7 @@ export default function GameScene() {
               (promise as any).catch(() => {});
             }
           }
-        } catch (e) {
-          // Gracefully handle security errors in restricted environments
-        }
+        } catch (e) {}
       }
       handleShoot();
     });
@@ -620,7 +621,7 @@ export default function GameScene() {
       if (player.position.z <= current.wallZ) handleGameOver();
 
       // Infinite corridor
-      if (player.position.z - engineRef.current.segments[0].endZ > 10) {
+      if (engineRef.current.segments.length > 0 && player.position.z - engineRef.current.segments[0].endZ > 10) {
         const old = engineRef.current.segments.shift()!;
         scene.remove(old.mesh);
         const last = engineRef.current.segments[engineRef.current.segments.length - 1];
@@ -675,20 +676,37 @@ export default function GameScene() {
       renderer.render(scene, camera);
     };
     animate();
-    return () => { window.removeEventListener('keydown', onKeyDown); window.removeEventListener('keyup', onKeyUp); window.removeEventListener('mousemove', onMouseMove); };
+    return () => { 
+      window.removeEventListener('keydown', onKeyDown); 
+      window.removeEventListener('keyup', onKeyUp); 
+      window.removeEventListener('mousemove', onMouseMove); 
+    };
   };
 
   const restartGame = () => {
-    const { scene, zombies, player, camera, weaponGroup, particles } = engineRef.current;
+    const { scene, zombies, player, camera, weaponGroup, particles, segments } = engineRef.current;
+    
+    // 1. Purge old game objects
     isGameOverTriggered.current = false;
     zombies.forEach(z => scene.remove(z.mesh));
     particles.forEach(p => scene.remove(p.mesh));
+    segments.forEach(s => scene.remove(s.mesh));
+    
     engineRef.current.zombies = [];
     engineRef.current.particles = [];
+    engineRef.current.segments = [];
+    
+    // 2. Reset Player
     player.position.set(0, 4.2, 0);
-    player.rotation.y = Math.PI;
+    player.rotation.y = Math.PI; // Face +Z
     camera.rotation.x = 0;
     
+    // 3. Regenerate Corridor
+    for (let i = 0; i < 4; i++) {
+      engineRef.current.segments.push(createSegment(i * SEGMENT_LENGTH));
+    }
+    
+    // 4. Reset Weapon
     weaponGroup.children.filter(child => child instanceof THREE.Group).forEach(child => weaponGroup.remove(child));
     weaponGroup.add(createWeaponModel('Standard'));
 
@@ -697,7 +715,12 @@ export default function GameScene() {
       bgMusicRef.current.muted = isMutedRef.current;
       bgMusicRef.current.play().catch(() => {}); 
     }
-    setGameState({ ...INITIAL_GAME_STATE, isGameActive: true, lastSpawnTime: performance.now() });
+    
+    setGameState({ 
+      ...INITIAL_GAME_STATE, 
+      isGameActive: true, 
+      lastSpawnTime: performance.now() 
+    });
   };
 
   useEffect(() => { initEngine(); }, []);
@@ -730,7 +753,10 @@ export default function GameScene() {
         <GameOver 
           state={gameState} 
           onRestart={restartGame} 
-          onQuit={() => { isGameOverTriggered.current = false; setGameState(INITIAL_GAME_STATE); }} 
+          onQuit={() => { 
+            isGameOverTriggered.current = false; 
+            setGameState(INITIAL_GAME_STATE); 
+          }} 
         />
       )}
     </div>
