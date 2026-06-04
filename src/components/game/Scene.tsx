@@ -62,7 +62,7 @@ export default function GameScene() {
     wallGroup: new THREE.Group(),
     wallGrid: new THREE.Group(),
     wallLight: new THREE.SpotLight(0xff003c, 5.0, 45),
-    ambientLight: new THREE.AmbientLight(0xffffff, 1.2),
+    ambientLight: new THREE.AmbientLight(0xffffff, 1.8), // Increased visibility
   });
 
   const stateRef = useRef<GameState>(INITIAL_GAME_STATE);
@@ -118,6 +118,7 @@ export default function GameScene() {
     const scoreValue = Math.round(stats.scoreValue * multiplier);
 
     const group = new THREE.Group();
+    // Scary creepy designs: Sickly desaturated palette
     const skinMat = new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.9, metalness: 0.05 }); 
     const clothingMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 1.0 }); 
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 }); 
@@ -259,7 +260,7 @@ export default function GameScene() {
       lamp.position.set(0, CORRIDOR_HEIGHT - 0.05, i);
       group.add(lamp);
 
-      const light = new THREE.PointLight(0xff3333, 15.0, 30);
+      const light = new THREE.PointLight(0xff3333, 20.0, 30); // Increased intensity
       light.position.set(0, CORRIDOR_HEIGHT - 0.5, i);
       group.add(light);
     }
@@ -331,11 +332,14 @@ export default function GameScene() {
       shotsFired: prev.shotsFired + 1
     }));
 
-    weaponGroup.position.z = 0.15;
-    weaponGroup.rotation.x = 0.2;
+    // Dynamic recoil
+    weaponGroup.position.z = -0.35; // Pull back
+    weaponGroup.rotation.x = 0.2; // Tilt up
 
-    engineRef.current.muzzleFlash.intensity = 3.5;
-    setTimeout(() => engineRef.current.muzzleFlash.intensity = 0, 60);
+    engineRef.current.muzzleFlash.intensity = 5.5;
+    setTimeout(() => {
+      engineRef.current.muzzleFlash.intensity = 0;
+    }, 60);
 
     raycaster.setFromCamera({ x: 0, y: 0 }, camera);
     const targets = zombies.filter(z => !z.isDead).map(z => z.mesh);
@@ -355,6 +359,7 @@ export default function GameScene() {
 
         setGameState(prev => ({ ...prev, shotsHit: prev.shotsHit + 1 }));
 
+        // Hit flash
         const flashMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 8.0 });
         zombie.mesh.traverse(obj => {
           if (obj instanceof THREE.Mesh) obj.material = flashMat;
@@ -371,6 +376,7 @@ export default function GameScene() {
           }
         }, 80);
 
+        // Particles
         for (let i = 0; i < 15; i++) {
           const pGeo = new THREE.BoxGeometry(0.05, 0.05, 0.05);
           const pMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
@@ -404,6 +410,7 @@ export default function GameScene() {
     if (isGameOverTriggered.current) return;
     isGameOverTriggered.current = true;
     
+    // Defer state update to next tick to avoid React render phase error
     setTimeout(() => {
       setGameState(prev => ({ ...prev, isGameOver: true, isGameActive: false }));
       try {
@@ -427,22 +434,43 @@ export default function GameScene() {
     engineRef.current.renderer = renderer;
 
     scene.background = new THREE.Color(0x0a0505);
-    scene.fog = new THREE.FogExp2(0x0a0505, 0.01); 
+    scene.fog = new THREE.FogExp2(0x0a0505, 0.005); // Lower density for visibility
 
     scene.add(ambientLight);
 
     player.position.set(0, 1.8, 0);
-    player.rotation.y = Math.PI; // Face forward (+Z)
+    player.rotation.y = Math.PI; // Face forward (+Z relative to segments)
     player.add(camera);
     scene.add(player);
 
-    const gunGeo = new THREE.BoxGeometry(0.1, 0.1, 0.4);
-    const gunMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
-    const gun = new THREE.Mesh(gunGeo, gunMat);
-    gun.position.set(0.3, -0.2, 0.4);
+    // SCI-FI GUN REDESIGN
+    const gunBody = new THREE.Mesh(
+      new THREE.BoxGeometry(0.12, 0.18, 0.5),
+      new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.9, roughness: 0.1 })
+    );
+    const barrel1 = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.02, 0.02, 0.4),
+      new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 1.0, roughness: 0.2 })
+    );
+    barrel1.rotation.x = Math.PI / 2;
+    barrel1.position.set(0.03, 0.04, 0.35);
+    
+    const barrel2 = barrel1.clone();
+    barrel2.position.x = -0.03;
+
+    const glowRail = new THREE.Mesh(
+      new THREE.BoxGeometry(0.01, 0.01, 0.45),
+      new THREE.MeshStandardMaterial({ color: 0xff003c, emissive: 0xff003c, emissiveIntensity: 2.0 })
+    );
+    glowRail.position.set(0, 0.08, 0.1);
+
+    const gun = new THREE.Group();
+    gun.add(gunBody, barrel1, barrel2, glowRail);
+    gun.position.set(0.35, -0.25, -0.5); // Fixed Z positioning to be in front of camera
     gun.castShadow = true;
+    
     weaponGroup.add(gun);
-    muzzleFlash.position.set(0.3, -0.2, 0.6);
+    muzzleFlash.position.set(0.35, -0.2, -0.9);
     weaponGroup.add(muzzleFlash);
     camera.add(weaponGroup);
 
@@ -469,11 +497,12 @@ export default function GameScene() {
       const current = stateRef.current;
       if (!current.isGameActive || current.isGameOver) return;
       
+      // Defensively handle pointer lock to avoid SecurityError in sandboxed environments
       if (document.pointerLockElement !== containerRef.current) {
         try {
           const lockPromise = containerRef.current?.requestPointerLock() as any;
           if (lockPromise && typeof lockPromise.catch === 'function') {
-            lockPromise.catch(() => { /* Pointer lock blocked/failed - ignore */ });
+            lockPromise.catch(() => { /* Pointer lock blocked/failed - ignore and allow playing */ });
           }
         } catch (err) { /* Catch sync errors */ }
       }
@@ -544,11 +573,11 @@ export default function GameScene() {
 
       const moveDir = new THREE.Vector3();
       const keys = engineRef.current.keysPressed;
-      // Controls relative to view direction
-      if (keys['KeyW']) moveDir.z -= 1; // Local Forward
-      if (keys['KeyS']) moveDir.z += 1; // Local Backward
-      if (keys['KeyA']) moveDir.x -= 1; // Local Left
-      if (keys['KeyD']) moveDir.x += 1; // Local Right
+      // Standard FPS controls relative to camera orientation
+      if (keys['KeyW']) moveDir.z -= 1; // Camera forward
+      if (keys['KeyS']) moveDir.z += 1; // Camera backward
+      if (keys['KeyA']) moveDir.x -= 1; // Camera left
+      if (keys['KeyD']) moveDir.x += 1; // Camera right
 
       if (moveDir.length() > 0) {
         moveDir.normalize().applyEuler(new THREE.Euler(0, player.rotation.y, 0));
@@ -559,8 +588,10 @@ export default function GameScene() {
         camera.position.y = THREE.MathUtils.lerp(camera.position.y, 1.8, 0.1);
       }
 
+      // Boundary Clamping
       player.position.x = Math.max(-3.7, Math.min(3.7, player.position.x));
 
+      // Wall hazard
       const currentWallSpeed = current.wallBaseSpeed;
       setGameState(prev => {
         let newWallZ = prev.wallZ + currentWallSpeed * delta;
@@ -579,6 +610,7 @@ export default function GameScene() {
 
       if (player.position.z <= current.wallZ) handleGameOver();
 
+      // Infinite corridor recycling
       if (player.position.z - engineRef.current.segments[0].endZ > 15) {
         const old = engineRef.current.segments.shift()!;
         scene.remove(old.mesh);
@@ -593,11 +625,13 @@ export default function GameScene() {
         engineRef.current.segments.push(createSegment(last.endZ));
       }
 
+      // Spawning
       if (performance.now() - current.lastSpawnTime > current.progression.currentSpawnInterval * 1000 && engineRef.current.zombies.length < current.progression.spawnCap) {
         spawnZombie();
         setGameState(prev => ({ ...prev, lastSpawnTime: performance.now() }));
       }
 
+      // Zombie AI
       engineRef.current.zombies = engineRef.current.zombies.filter(z => {
         if (z.isDead) return false;
         if (z.mesh.position.z <= current.wallZ) {
@@ -633,6 +667,7 @@ export default function GameScene() {
         return true;
       });
 
+      // Particles
       engineRef.current.particles = engineRef.current.particles.filter(p => {
         p.mesh.position.add(p.velocity.clone().multiplyScalar(delta));
         p.velocity.y -= 9.8 * delta;
@@ -645,7 +680,8 @@ export default function GameScene() {
         return true;
       });
 
-      weaponGroup.position.z = THREE.MathUtils.lerp(weaponGroup.position.z, 0.4, 0.15); 
+      // Recoil Lerp
+      weaponGroup.position.z = THREE.MathUtils.lerp(weaponGroup.position.z, -0.5, 0.15); 
       weaponGroup.rotation.x = THREE.MathUtils.lerp(weaponGroup.rotation.x, 0, 0.15);
 
       setGameState(prev => ({ ...prev, distance: Math.floor(player.position.z) }));
@@ -685,9 +721,9 @@ export default function GameScene() {
       engineRef.current.segments.push(createSegment(i * SEGMENT_LENGTH));
     }
 
-    ambientLight.intensity = 1.2;
+    ambientLight.intensity = 1.8;
     if (scene.fog instanceof THREE.FogExp2) {
-      scene.fog.density = 0.01;
+      scene.fog.density = 0.005;
     }
 
     setGameState({ 
