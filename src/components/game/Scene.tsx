@@ -214,6 +214,7 @@ export default function GameScene() {
     const skinMat = new THREE.MeshStandardMaterial({ color: 0x8a7a7a, roughness: 0.8 }); 
     const muscleMat = new THREE.MeshStandardMaterial({ color: 0x4a0000, emissive: 0xff0000, emissiveIntensity: 0.8 }); 
 
+    // GORGON-CLASS MUTATION: Muscular torso, asymmetrical limbs
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), skinMat);
     head.position.y = 1.35;
     head.position.z = 0.1;
@@ -223,11 +224,13 @@ export default function GameScene() {
     torso.position.y = 0.85;
     group.add(torso);
     
+    // Protruding muscle tissue
     const gut = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.65), muscleMat);
     gut.position.y = 0.7;
     gut.position.z = 0.15;
     group.add(gut);
 
+    // MUTATED BLADE ARM (Right)
     const rightArmGroup = new THREE.Group();
     const rArmBase = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.9), skinMat);
     rArmBase.position.set(0, 0, 0.45);
@@ -238,6 +241,7 @@ export default function GameScene() {
     rightArmGroup.position.set(0.65, 1.1, 0);
     group.add(rightArmGroup);
 
+    // MUTATED PINCER ARM (Left)
     const leftArmGroup = new THREE.Group();
     const lArmBase = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.7), skinMat);
     lArmBase.position.set(0, 0, 0.35);
@@ -293,6 +297,7 @@ export default function GameScene() {
   const createSegment = (z: number) => {
     const group = new THREE.Group();
     
+    // V2 INDUSTRIAL BRUTALIST MATERIALS
     const floorMat = new THREE.MeshStandardMaterial({ color: 0x111215, roughness: 0.8, metalness: 0.8 });
     const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x15161a, roughness: 0.9, metalness: 0.2 });
     const wallMat = new THREE.MeshStandardMaterial({ color: 0x222429, roughness: 0.7, metalness: 0.5 });
@@ -318,6 +323,7 @@ export default function GameScene() {
     rWall.position.x = CORRIDOR_WIDTH / 2 + 0.1;
     group.add(rWall);
 
+    // Reinforcement Pillars
     for (let i = 0; i <= SEGMENT_LENGTH; i += 6) {
       const pZ = i - SEGMENT_LENGTH / 2;
       const lPillar = new THREE.Mesh(new THREE.BoxGeometry(0.4, CORRIDOR_HEIGHT, 0.6), pillarMat);
@@ -333,6 +339,7 @@ export default function GameScene() {
       group.add(beam);
     }
 
+    // Corner LED Rails
     const railGeo = new THREE.BoxGeometry(0.08, 0.08, SEGMENT_LENGTH);
     const rail1 = new THREE.Mesh(railGeo, ledMat);
     rail1.position.set(-CORRIDOR_WIDTH / 2 + 0.04, 0.04, 0);
@@ -350,6 +357,7 @@ export default function GameScene() {
     rail4.position.x = CORRIDOR_WIDTH / 2 - 0.04;
     group.add(rail4);
 
+    // Emergency Lamps
     for (let i = 5; i < SEGMENT_LENGTH; i += 10) {
       const lZ = i - SEGMENT_LENGTH / 2;
       const lamp = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 1.2), lampMat);
@@ -411,6 +419,7 @@ export default function GameScene() {
     const intersects = raycaster.intersectObjects(targets, true);
 
     if (intersects.length > 0) {
+      // PRECISE IMPACT FEEDBACK
       const hitPoint = intersects[0].point;
       createBloodSplatter(hitPoint);
 
@@ -421,6 +430,7 @@ export default function GameScene() {
       
       const zombie = zombies.find(z => z.mesh === targetMesh);
       if (zombie && !zombie.isDead) {
+        // ONE-SHOT SHOTGUN: 3.5 damage (Walker base HP is 3)
         const damage = current.weaponType === 'Shotgun' ? 3.5 : 1.0;
         zombie.hp -= damage;
         zombie.mesh.position.z += 1.2;
@@ -428,6 +438,7 @@ export default function GameScene() {
         setGameState(prev => ({ ...prev, shotsHit: prev.shotsHit + 1 }));
 
         if (zombie.hp <= 0) {
+          // INSTANT PURGE
           scene.remove(zombie.mesh);
           zombie.isDead = true;
 
@@ -470,6 +481,7 @@ export default function GameScene() {
     scene.fog = new THREE.FogExp2(0x0a0505, 0.012);
     scene.add(engineRef.current.ambientLight);
 
+    // PERFECT ORIENTATION: Facing +Z
     player.position.set(0, 4.2, 0); 
     player.rotation.y = Math.PI; 
     camera.rotation.order = 'YXZ';
@@ -512,9 +524,13 @@ export default function GameScene() {
     
     containerRef.current?.addEventListener('mousedown', () => {
       if (document.pointerLockElement !== containerRef.current) {
+        // ROBUST SECURITY FIX: Guarded requestPointerLock
         try {
           if (typeof containerRef.current?.requestPointerLock === 'function') {
-            containerRef.current.requestPointerLock();
+            const promise = containerRef.current.requestPointerLock();
+            if (promise && (promise as any).catch) {
+              (promise as any).catch(() => {});
+            }
           }
         } catch (e) {
           // Gracefully handle security errors in restricted environments
@@ -533,6 +549,7 @@ export default function GameScene() {
         return;
       }
 
+      // Progression logic
       const newTimeInStage = current.progression.timeInCurrentStage + delta;
       if (newTimeInStage >= current.progression.stageDurationThreshold) {
         const nextStage = current.progression.currentStage + 1;
@@ -575,6 +592,7 @@ export default function GameScene() {
         setGameState(prev => ({ ...prev, progression: { ...prev.progression, timeInCurrentStage: newTimeInStage } }));
       }
 
+      // PERFECT WASD CONTROLS
       const keys = engineRef.current.keysPressed;
       const moveDir = new THREE.Vector3();
       
@@ -599,6 +617,7 @@ export default function GameScene() {
 
       player.position.x = Math.max(-CORRIDOR_WIDTH / 2 + 1.8, Math.min(CORRIDOR_WIDTH / 2 - 1.8, player.position.x));
 
+      // Wall logic
       setGameState(prev => {
         let newWallZ = prev.wallZ + prev.wallCurrentSpeed * (1 + (prev.progression.currentStage - 1) * 0.2) * delta;
         if (player.position.z - newWallZ > prev.wallMaxDistanceBehind) newWallZ = player.position.z - prev.wallMaxDistanceBehind;
@@ -609,6 +628,7 @@ export default function GameScene() {
       engineRef.current.wallGroup.position.z = current.wallZ;
       if (player.position.z <= current.wallZ) handleGameOver();
 
+      // Infinite corridor
       if (player.position.z - engineRef.current.segments[0].endZ > 10) {
         const old = engineRef.current.segments.shift()!;
         scene.remove(old.mesh);
@@ -616,11 +636,13 @@ export default function GameScene() {
         engineRef.current.segments.push(createSegment(last.endZ));
       }
 
+      // Spawning
       if (performance.now() - current.lastSpawnTime > current.progression.currentSpawnInterval * 1000 && engineRef.current.zombies.length < current.progression.spawnCap) {
         spawnZombie();
         setGameState(prev => ({ ...prev, lastSpawnTime: performance.now() }));
       }
 
+      // Zombie updates
       engineRef.current.zombies = engineRef.current.zombies.filter(z => {
         if (z.isDead) return false;
 
@@ -644,6 +666,7 @@ export default function GameScene() {
         return true;
       });
 
+      // Particle updates
       engineRef.current.particles = engineRef.current.particles.filter(p => {
         p.mesh.position.add(p.velocity.clone().multiplyScalar(delta));
         p.velocity.y -= 12.0 * delta; 
