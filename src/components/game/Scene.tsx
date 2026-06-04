@@ -2,9 +2,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import * as THREE from 'this-package-is-not-real-using-three-directly';
-import * as THREE_REAL from 'three';
-const THREE = THREE_REAL;
+import * as THREE from 'three';
 import { GameState, INITIAL_GAME_STATE, ZOMBIE_CLASSES, ZombieType } from '@/lib/game-types';
 import HUD from './HUD';
 import GameOver from './GameOver';
@@ -246,56 +244,61 @@ export default function GameScene() {
     const muscleMat = new THREE.MeshStandardMaterial({ color: 0x4a0000, emissive: 0xff0000, emissiveIntensity: 0.8 }); 
     const eyeMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 5.0 });
 
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.3, 0.25), skinMat);
+    // LEANER HEAD
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.3, 0.2), skinMat);
     head.position.y = 1.35;
     head.position.z = 0.1;
     group.add(head);
 
     const leftEye = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.05), eyeMat);
-    leftEye.position.set(-0.08, 0.05, 0.16);
+    leftEye.position.set(-0.06, 0.05, 0.11);
     head.add(leftEye);
     const rightEye = leftEye.clone();
-    rightEye.position.x = 0.08;
+    rightEye.position.x = 0.06;
     head.add(rightEye);
 
-    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.1, 0.45), skinMat);
+    // SLIMMER TORSO (0.5w, 0.35d)
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.1, 0.35), skinMat);
     torso.position.y = 0.85;
     group.add(torso);
     
-    const gut = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.6, 0.4), muscleMat);
+    // NARROWER GUT
+    const gut = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.6, 0.3), muscleMat);
     gut.position.y = 0.7;
-    gut.position.z = 0.15;
+    gut.position.z = 0.12;
     group.add(gut);
 
     const rightArmGroup = new THREE.Group();
-    const rArmBase = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.3, 0.9), skinMat);
-    rArmBase.position.set(0, 0, 0.45);
-    const rArmBlade = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.7, 1.4), muscleMat);
+    // NARROWER ARMS
+    const rArmBase = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.25, 0.7), skinMat);
+    rArmBase.position.set(0, 0, 0.35);
+    const rArmBlade = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.7, 1.4), muscleMat);
     rArmBlade.position.set(0, -0.3, 1.4);
     rArmBlade.rotation.x = 0.3;
     rightArmGroup.add(rArmBase, rArmBlade);
-    rightArmGroup.position.set(0.45, 1.1, 0);
+    rightArmGroup.position.set(0.35, 1.1, 0);
     group.add(rightArmGroup);
 
     const leftArmGroup = new THREE.Group();
-    const lArmBase = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.3, 0.7), skinMat);
-    lArmBase.position.set(0, 0, 0.35);
-    const pincer1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 1.1), muscleMat);
-    pincer1.position.set(-0.1, 0.1, 1.1);
+    const lArmBase = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.25, 0.6), skinMat);
+    lArmBase.position.set(0, 0, 0.3);
+    const pincer1 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 1.1), muscleMat);
+    pincer1.position.set(-0.08, 0.1, 1.1);
     pincer1.rotation.y = 0.25;
     const pincer2 = pincer1.clone();
-    pincer2.position.set(0.1, -0.1, 1.1);
+    pincer2.position.set(0.08, -0.1, 1.1);
     pincer2.rotation.y = -0.25;
     leftArmGroup.add(lArmBase, pincer1, pincer2);
-    leftArmGroup.position.set(-0.45, 1.1, 0);
+    leftArmGroup.position.set(-0.35, 1.1, 0);
     group.add(leftArmGroup);
 
-    const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.7, 0.3), skinMat);
-    leftLeg.position.set(-0.25, 0.35, 0);
+    // SLIMMER LEGS
+    const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.7, 0.22), skinMat);
+    leftLeg.position.set(-0.18, 0.35, 0);
     group.add(leftLeg);
     
     const rightLeg = leftLeg.clone();
-    rightLeg.position.x = 0.25;
+    rightLeg.position.x = 0.18;
     group.add(rightLeg);
 
     group.scale.setScalar(stats.scale);
