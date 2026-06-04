@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { GameState, INITIAL_GAME_STATE, ZOMBIE_CLASSES, ZombieType } from '@/lib/game-types';
 import HUD from './HUD';
@@ -247,7 +248,7 @@ export default function GameScene() {
       lamp.position.set(0, CORRIDOR_HEIGHT - 0.05, i);
       group.add(lamp);
 
-      const light = new THREE.PointLight(0xff3333, 4.0, 20);
+      const light = new THREE.PointLight(0xff3333, 8.0, 30);
       light.position.set(0, CORRIDOR_HEIGHT - 0.5, i);
       group.add(light);
     }
@@ -399,17 +400,20 @@ export default function GameScene() {
     }
   };
 
-  const handleGameOver = () => {
+  const handleGameOver = useCallback(() => {
     if (isGameOverTriggered.current) return;
     isGameOverTriggered.current = true;
     
-    setGameState(prev => ({ ...prev, isGameOver: true, isGameActive: false }));
-    try {
-      if (document.pointerLockElement) {
-        document.exitPointerLock();
-      }
-    } catch(e) {}
-  };
+    // Defer state update to avoid React warnings during render loops
+    setTimeout(() => {
+      setGameState(prev => ({ ...prev, isGameOver: true, isGameActive: false }));
+      try {
+        if (document.pointerLockElement) {
+          document.exitPointerLock();
+        }
+      } catch(e) {}
+    }, 0);
+  }, []);
 
   const initEngine = () => {
     const { scene, camera, player, weaponGroup, muzzleFlash, segments, renderer: existingRenderer } = engineRef.current;
@@ -427,11 +431,11 @@ export default function GameScene() {
     scene.background = new THREE.Color(0x0a0505);
     scene.fog = new THREE.FogExp2(0x0a0505, 0.012);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambient);
 
     player.position.set(0, 1.8, 0);
-    player.rotation.y = Math.PI; // Face forward (+Z) relative to segment gen
+    player.rotation.y = Math.PI; // Face forward (+Z)
     player.add(camera);
     scene.add(player);
 
@@ -473,8 +477,14 @@ export default function GameScene() {
 
       if (document.pointerLockElement !== containerRef.current) {
         try {
-          containerRef.current?.requestPointerLock();
-        } catch (err) {}
+          // Wrapped in a try/catch and handling potential promise rejection to stop security errors
+          const result = containerRef.current?.requestPointerLock();
+          if (result instanceof Promise) {
+            result.catch(() => { /* ignore sandbox rejection */ });
+          }
+        } catch (err) {
+          // ignore sandboxed environment security errors
+        }
       }
       handleShoot();
     });
@@ -717,3 +727,4 @@ export default function GameScene() {
     </div>
   );
 }
+
