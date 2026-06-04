@@ -538,7 +538,7 @@ export default function GameScene() {
     scene.add(ambientLight);
 
     player.position.set(0, 4.2, 0); // Eye level raised for 1.5x scaling
-    player.rotation.y = 0; // Fixed starting orientation to face +Z
+    player.rotation.y = Math.PI; // CRITICAL: Face positive Z direction (the corridor)
     camera.rotation.order = 'YXZ';
     camera.rotation.y = 0; 
     player.add(camera);
@@ -741,7 +741,7 @@ export default function GameScene() {
     segments.forEach(s => { scene.remove(s.mesh); s.mesh.traverse(obj => { if (obj instanceof THREE.Mesh) { obj.geometry.dispose(); if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose()); else obj.material.dispose(); } }); });
     engineRef.current.segments = [];
     player.position.set(0, 4.2, 0);
-    player.rotation.y = 0; // Ensure forward start
+    player.rotation.y = Math.PI; // CRITICAL: Face forward into corridor (+Z)
     camera.rotation.y = 0;
     
     const toRemove = weaponGroup.children.filter(child => child instanceof THREE.Group && child !== engineRef.current.muzzleFlashMesh);
