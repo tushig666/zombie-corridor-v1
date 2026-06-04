@@ -9,8 +9,8 @@ import GameOver from './GameOver';
 
 // Constants
 const SEGMENT_LENGTH = 30;
-const CORRIDOR_WIDTH = 8;
-const CORRIDOR_HEIGHT = 13.5; // 1.5x height as requested earlier (original v2 was 5.5, 9 was intermediate)
+const CORRIDOR_WIDTH = 12; // Wider for the 1.5x scale feel
+const CORRIDOR_HEIGHT = 13.5; // 1.5x height (original v2 was 5.5, 9 was intermediate)
 
 interface ZombieInstance {
   mesh: THREE.Group;
@@ -77,6 +77,7 @@ export default function GameScene() {
   }, [gameState]);
 
   useEffect(() => {
+    // Audio pre-loading
     const gunshotUrl = "https://www.myinstants.com/media/sounds/gsht-44263.mp3";
     const gPool: HTMLAudioElement[] = [];
     for (let i = 0; i < 15; i++) {
@@ -266,7 +267,7 @@ export default function GameScene() {
   const createSegment = (z: number) => {
     const group = new THREE.Group();
     
-    // Materials
+    // Materials Restoration (v2 Spec)
     const floorMat = new THREE.MeshStandardMaterial({ color: 0x111215, roughness: 0.8, metalness: 0.8 });
     const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x15161a, roughness: 0.9, metalness: 0.2 });
     const wallMat = new THREE.MeshStandardMaterial({ color: 0x222429, roughness: 0.7, metalness: 0.5 });
@@ -297,7 +298,7 @@ export default function GameScene() {
     rWall.position.x = CORRIDOR_WIDTH / 2 + 0.1;
     group.add(rWall);
 
-    // Pillars & Beams
+    // Pillars & Beams (v2 Sci-Fi reinforcements)
     for (let i = 0; i <= SEGMENT_LENGTH; i += 6) {
       const pZ = i - SEGMENT_LENGTH / 2;
       
@@ -314,7 +315,7 @@ export default function GameScene() {
       group.add(beam);
     }
 
-    // LED Corner Rails
+    // LED Corner Rails (v2 laser-red glow)
     const railGeo = new THREE.BoxGeometry(0.08, 0.08, SEGMENT_LENGTH);
     const rail1 = new THREE.Mesh(railGeo, ledMat);
     rail1.position.set(-CORRIDOR_WIDTH / 2 + 0.04, 0.04, 0);
@@ -332,7 +333,7 @@ export default function GameScene() {
     rail4.position.x = CORRIDOR_WIDTH / 2 - 0.04;
     group.add(rail4);
 
-    // Ceiling Lights
+    // Ceiling Lights (v2 emergency lamps)
     for (let i = 5; i < SEGMENT_LENGTH; i += 10) {
       const lZ = i - SEGMENT_LENGTH / 2;
       const lamp = new THREE.Mesh(new THREE.BoxGeometry(1, 0.1, 1), lampMat);
@@ -494,7 +495,10 @@ export default function GameScene() {
       if (document.pointerLockElement !== containerRef.current) {
         try {
           containerRef.current?.requestPointerLock();
-        } catch (e) {}
+        } catch (e) {
+          // Gracefully handle security errors in restricted environments
+          console.warn("Pointer lock could not be requested.");
+        }
       }
       handleShoot();
     });
@@ -553,6 +557,7 @@ export default function GameScene() {
         setGameState(prev => ({ ...prev, progression: { ...prev.progression, timeInCurrentStage: newTimeInStage } }));
       }
 
+      // Movement Logic
       const moveDir = new THREE.Vector3();
       const keys = engineRef.current.keysPressed;
       
