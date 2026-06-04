@@ -214,7 +214,7 @@ export default function GameScene() {
     const skinMat = new THREE.MeshStandardMaterial({ color: 0x8a7a7a, roughness: 0.8 }); 
     const muscleMat = new THREE.MeshStandardMaterial({ color: 0x4a0000, emissive: 0xff0000, emissiveIntensity: 0.8 }); 
 
-    // GORGON-CLASS MUTATION: Muscular torso, asymmetrical limbs
+    // GORGON-CLASS MUTATION
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), skinMat);
     head.position.y = 1.35;
     head.position.z = 0.1;
@@ -224,13 +224,11 @@ export default function GameScene() {
     torso.position.y = 0.85;
     group.add(torso);
     
-    // Protruding muscle tissue
     const gut = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.65), muscleMat);
     gut.position.y = 0.7;
     gut.position.z = 0.15;
     group.add(gut);
 
-    // MUTATED BLADE ARM (Right)
     const rightArmGroup = new THREE.Group();
     const rArmBase = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.9), skinMat);
     rArmBase.position.set(0, 0, 0.45);
@@ -241,7 +239,6 @@ export default function GameScene() {
     rightArmGroup.position.set(0.65, 1.1, 0);
     group.add(rightArmGroup);
 
-    // MUTATED PINCER ARM (Left)
     const leftArmGroup = new THREE.Group();
     const lArmBase = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.7), skinMat);
     lArmBase.position.set(0, 0, 0.35);
@@ -323,7 +320,6 @@ export default function GameScene() {
     rWall.position.x = CORRIDOR_WIDTH / 2 + 0.1;
     group.add(rWall);
 
-    // Reinforcement Pillars
     for (let i = 0; i <= SEGMENT_LENGTH; i += 6) {
       const pZ = i - SEGMENT_LENGTH / 2;
       const lPillar = new THREE.Mesh(new THREE.BoxGeometry(0.4, CORRIDOR_HEIGHT, 0.6), pillarMat);
@@ -339,7 +335,6 @@ export default function GameScene() {
       group.add(beam);
     }
 
-    // Corner LED Rails
     const railGeo = new THREE.BoxGeometry(0.08, 0.08, SEGMENT_LENGTH);
     const rail1 = new THREE.Mesh(railGeo, ledMat);
     rail1.position.set(-CORRIDOR_WIDTH / 2 + 0.04, 0.04, 0);
@@ -357,7 +352,6 @@ export default function GameScene() {
     rail4.position.x = CORRIDOR_WIDTH / 2 - 0.04;
     group.add(rail4);
 
-    // Emergency Lamps
     for (let i = 5; i < SEGMENT_LENGTH; i += 10) {
       const lZ = i - SEGMENT_LENGTH / 2;
       const lamp = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 1.2), lampMat);
@@ -419,7 +413,6 @@ export default function GameScene() {
     const intersects = raycaster.intersectObjects(targets, true);
 
     if (intersects.length > 0) {
-      // PRECISE IMPACT FEEDBACK: Trigger exactly at collision point
       const hitPoint = intersects[0].point;
       createBloodSplatter(hitPoint);
 
@@ -430,7 +423,6 @@ export default function GameScene() {
       
       const zombie = zombies.find(z => z.mesh === targetMesh);
       if (zombie && !zombie.isDead) {
-        // ONE-SHOT SHOTGUN: 3.5 damage (Walker base HP is 3)
         const damage = current.weaponType === 'Shotgun' ? 3.5 : 1.0;
         zombie.hp -= damage;
         zombie.mesh.position.z += 1.2;
@@ -438,7 +430,6 @@ export default function GameScene() {
         setGameState(prev => ({ ...prev, shotsHit: prev.shotsHit + 1 }));
 
         if (zombie.hp <= 0) {
-          // INSTANT PURGE
           scene.remove(zombie.mesh);
           zombie.isDead = true;
 
@@ -745,4 +736,3 @@ export default function GameScene() {
     </div>
   );
 }
-
