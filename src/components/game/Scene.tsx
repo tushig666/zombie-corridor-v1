@@ -7,7 +7,7 @@ import { GameState, INITIAL_GAME_STATE, ZOMBIE_CLASSES, ZombieType } from '@/lib
 import HUD from './HUD';
 import GameOver from './GameOver';
 
-// Constants
+// Constants for v2 Environment
 const SEGMENT_LENGTH = 30;
 const CORRIDOR_WIDTH = 12; 
 const CORRIDOR_HEIGHT = 13.5; 
@@ -745,3 +745,4 @@ export default function GameScene() {
     </div>
   );
 }
+
