@@ -486,8 +486,9 @@ export default function GameScene() {
     scene.fog = new THREE.FogExp2(0x0a0505, 0.012);
     scene.add(engineRef.current.ambientLight);
 
+    // Face directly into the corridor (+Z)
     player.position.set(0, 4.2, 0); 
-    player.rotation.y = 0; 
+    player.rotation.y = Math.PI; 
     camera.rotation.order = 'YXZ';
     player.add(camera);
     scene.add(player);
@@ -593,13 +594,18 @@ export default function GameScene() {
       const keys = engineRef.current.keysPressed;
       const moveDir = new THREE.Vector3();
       
-      const forward = new THREE.Vector3(0, 0, 1).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
-      const right = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
+      // Corrected movement vectors: use camera's world direction for forward
+      const direction = new THREE.Vector3();
+      camera.getWorldDirection(direction);
+      direction.y = 0;
+      direction.normalize();
 
-      if (keys['KeyW']) moveDir.add(forward);
-      if (keys['KeyS']) moveDir.sub(forward);
-      if (keys['KeyA']) moveDir.sub(right);
-      if (keys['KeyD']) moveDir.add(right);
+      const lateral = new THREE.Vector3().crossVectors(direction, camera.up).normalize();
+
+      if (keys['KeyW']) moveDir.add(direction);
+      if (keys['KeyS']) moveDir.sub(direction);
+      if (keys['KeyA']) moveDir.add(lateral); // Corrected lateral based on getWorldDirection cross
+      if (keys['KeyD']) moveDir.sub(lateral);
 
       if (moveDir.length() > 0) {
         moveDir.normalize();
@@ -702,7 +708,7 @@ export default function GameScene() {
     engineRef.current.zombies = [];
     engineRef.current.particles = [];
     player.position.set(0, 4.2, 0);
-    player.rotation.y = 0; 
+    player.rotation.y = Math.PI; // Face +Z at start
     camera.rotation.x = 0;
     
     weaponGroup.children.filter(child => child instanceof THREE.Group).forEach(child => weaponGroup.remove(child));
