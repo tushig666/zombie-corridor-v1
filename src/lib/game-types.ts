@@ -7,15 +7,23 @@ export interface ZombieStats {
   baseSpeed: number;
   scoreValue: number;
   scale: number;
-  color: number;
 }
 
 export const ZOMBIE_CLASSES: Record<ZombieType, ZombieStats> = {
-  Walker: { type: 'Walker', baseHp: 3, baseSpeed: 2.7, scoreValue: 10, scale: 1.4, color: 0x44c466 },
-  Runner: { type: 'Runner', baseHp: 2, baseSpeed: 4.8, scoreValue: 15, scale: 1.25, color: 0xff4c3b },
-  Tank: { type: 'Tank', baseHp: 6, baseSpeed: 1.8, scoreValue: 50, scale: 2.1, color: 0x8a63e5 },
-  Elite: { type: 'Elite', baseHp: 8, baseSpeed: 3.2, scoreValue: 100, scale: 1.75, color: 0xfcc623 },
+  Walker: { type: 'Walker', baseHp: 3, baseSpeed: 2.7, scoreValue: 10, scale: 1.4 },
+  Runner: { type: 'Runner', baseHp: 2, baseSpeed: 4.8, scoreValue: 15, scale: 1.25 },
+  Tank: { type: 'Tank', baseHp: 6, baseSpeed: 1.8, scoreValue: 50, scale: 2.1 },
+  Elite: { type: 'Elite', baseHp: 8, baseSpeed: 3.2, scoreValue: 100, scale: 1.75 },
 };
+
+export interface ProgressionEngine {
+  currentStage: number;
+  timeInCurrentStage: number;
+  stageDurationThreshold: number;
+  globalDifficultyMultiplier: number;
+  spawnCap: number;
+  currentSpawnInterval: number;
+}
 
 export interface GameState {
   isGameActive: boolean;
@@ -30,23 +38,20 @@ export interface GameState {
   lastDamageTime: number;
   nextShotTime: number;
   shotCooldown: number;
-  stage: number;
-  baseSpawnInterval: number;
-  currentSpawnInterval: number;
-  minSpawnInterval: number;
-  stageDuration: number;
-  lastStageUpdateTime: number;
   lastSpawnTime: number;
-  maxActiveZombies: number;
   wallZ: number;
   wallBaseSpeed: number;
   wallCurrentSpeed: number;
   wallMaxDistanceBehind: number;
-  // Stats for AI review
+  // Stats
   shotsFired: number;
   shotsHit: number;
   killsByType: Record<string, number>;
   startTime: number;
+  // Progression
+  progression: ProgressionEngine;
+  stageTitle: string;
+  showAlert: boolean;
 }
 
 export const INITIAL_GAME_STATE: GameState = {
@@ -62,17 +67,10 @@ export const INITIAL_GAME_STATE: GameState = {
   lastDamageTime: 0,
   nextShotTime: 0,
   shotCooldown: 200,
-  stage: 1,
-  baseSpawnInterval: 2500,
-  currentSpawnInterval: 2500,
-  minSpawnInterval: 600,
-  stageDuration: 20000,
-  lastStageUpdateTime: 0,
   lastSpawnTime: 0,
-  maxActiveZombies: 25,
   wallZ: -20,
-  wallBaseSpeed: 3.5,
-  wallCurrentSpeed: 3.5,
+  wallBaseSpeed: 2.5,
+  wallCurrentSpeed: 2.5,
   wallMaxDistanceBehind: 35,
   shotsFired: 0,
   shotsHit: 0,
@@ -83,4 +81,14 @@ export const INITIAL_GAME_STATE: GameState = {
     Elite: 0
   },
   startTime: 0,
+  stageTitle: 'CONTAINMENT BREACH',
+  showAlert: false,
+  progression: {
+    currentStage: 1,
+    timeInCurrentStage: 0,
+    stageDurationThreshold: 30.0,
+    globalDifficultyMultiplier: 1.0,
+    spawnCap: 6,
+    currentSpawnInterval: 3.0,
+  }
 };

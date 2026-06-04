@@ -62,6 +62,7 @@ export default function GameScene() {
     wallGroup: new THREE.Group(),
     wallGrid: new THREE.Group(),
     wallLight: new THREE.SpotLight(0xff003c, 5.0, 45),
+    ambientLight: new THREE.AmbientLight(0xffffff, 1.2),
   });
 
   const stateRef = useRef<GameState>(INITIAL_GAME_STATE);
@@ -82,33 +83,57 @@ export default function GameScene() {
   const spawnZombie = () => {
     const { scene, player, zombies } = engineRef.current;
     const current = stateRef.current;
+    const stage = current.progression.currentStage;
 
-    const pool = ['Walker', 'Walker', 'Walker', 'Runner', 'Runner', 'Tank', 'Elite'];
-    const type = pool[Math.floor(Math.random() * pool.length)] as ZombieType;
+    // Level State Tier Weights
+    let type: ZombieType;
+    const rand = Math.random();
+
+    if (stage === 1) {
+      type = 'Walker';
+    } else if (stage === 2) {
+      if (rand < 0.7) type = 'Walker';
+      else if (rand < 0.9) type = 'Runner';
+      else type = 'Tank';
+    } else if (stage === 3) {
+      if (rand < 0.4) type = 'Walker';
+      else if (rand < 0.8) type = 'Runner';
+      else if (rand < 0.95) type = 'Tank';
+      else type = 'Elite';
+    } else if (stage === 4) {
+      if (rand < 0.15) type = 'Walker';
+      else if (rand < 0.65) type = 'Runner';
+      else if (rand < 0.85) type = 'Tank';
+      else type = 'Elite';
+    } else {
+      if (rand < 0.4) type = 'Runner';
+      else if (rand < 0.7) type = 'Tank';
+      else type = 'Elite';
+    }
+
     const stats = ZOMBIE_CLASSES[type];
-    
-    const statMultiplier = 1.0 + (current.stage - 1) * 0.19;
-    const hp = Math.round(stats.baseHp * (1.0 + (current.stage - 1) * 0.1));
-    const speed = stats.baseSpeed * statMultiplier;
+    const multiplier = current.progression.globalDifficultyMultiplier;
+
+    // Apply Live Injective Spawn Factory Matrices
+    const speed = stats.baseSpeed * multiplier;
+    const hp = Math.round(stats.baseHp * multiplier);
+    const scoreValue = Math.round(stats.scoreValue * multiplier);
 
     const group = new THREE.Group();
-    
-    // Unified "Creepy" Palette
-    const skinMat = new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.9, metalness: 0.05 }); // Sickly pale gray
-    const clothingMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 1.0 }); // Dark, desaturated rags
-    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // Menacing Red
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.9, metalness: 0.05 }); 
+    const clothingMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 1.0 }); 
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 }); 
     const mouthMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-    const teethMat = new THREE.MeshBasicMaterial({ color: 0xd1d5db }); // Dirty bone white
-    const goreMat = new THREE.MeshStandardMaterial({ color: 0x7f1d1d, roughness: 0.8 }); // Dried blood/gore
+    const teethMat = new THREE.MeshBasicMaterial({ color: 0xd1d5db }); 
+    const goreMat = new THREE.MeshStandardMaterial({ color: 0x7f1d1d, roughness: 0.8 }); 
 
-    // Head - slightly tilted for creepiness
+    // Head
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.44, 0.44), skinMat);
     head.position.y = 1.45;
     head.rotation.z = (Math.random() - 0.5) * 0.3;
-    head.castShadow = true;
     group.add(head);
 
-    // Eyes - Glowing pinpricks
+    // Eyes
     const lEye = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.05), eyeMat);
     lEye.position.set(-0.12, 1.55, 0.22);
     group.add(lEye);
@@ -116,45 +141,37 @@ export default function GameScene() {
     rEye.position.x = 0.12;
     group.add(rEye);
 
-    // Mouth - wide and gaping
+    // Mouth
     const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.04), mouthMat);
     mouth.position.set(0, 1.32, 0.22);
     group.add(mouth);
 
-    // Torso - Spindly and distorted
+    // Torso
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.8, 0.3), clothingMat);
     torso.position.y = 0.9;
-    torso.castShadow = true;
     group.add(torso);
 
-    // Exposed Ribcage/Gore
+    // Exposed Wound
     const wound = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.4, 0.05), goreMat);
     wound.position.set(0, 0.9, 0.16);
     group.add(wound);
 
-    // Arms - Asymmetric and reaching
+    // Arms
     const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.75), skinMat);
     leftArm.position.set(-0.35, 1.15, 0.3);
-    leftArm.castShadow = true;
     group.add(leftArm);
 
-    const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.85), skinMat); // Slightly longer
+    const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.85), skinMat); 
     rightArm.position.set(0.35, 1.1, 0.35);
-    rightArm.rotation.y = 0.1;
-    rightArm.castShadow = true;
     group.add(rightArm);
 
-    // Legs - Hunched stance
+    // Legs
     const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.15), clothingMat);
     leftLeg.position.set(-0.18, 0.3, 0);
-    leftLeg.rotation.x = 0.1;
-    leftLeg.castShadow = true;
     group.add(leftLeg);
     
     const rightLeg = leftLeg.clone();
     rightLeg.position.x = 0.18;
-    rightLeg.rotation.x = -0.1;
-    rightLeg.castShadow = true;
     group.add(rightLeg);
 
     group.scale.setScalar(stats.scale);
@@ -177,7 +194,7 @@ export default function GameScene() {
       hp,
       speed,
       type,
-      scoreValue: stats.scoreValue,
+      scoreValue,
       isDead: false,
       lastAttackTime: 0,
       leftArm,
@@ -191,7 +208,6 @@ export default function GameScene() {
 
   const createSegment = (z: number) => {
     const group = new THREE.Group();
-    
     const floorMat = new THREE.MeshStandardMaterial({ color: 0x111215, metalness: 0.8, roughness: 0.8 });
     const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x15161a, metalness: 0.2, roughness: 0.9 });
     const wallMat = new THREE.MeshStandardMaterial({ color: 0x222429, metalness: 0.5, roughness: 0.7 });
@@ -253,7 +269,7 @@ export default function GameScene() {
       lamp.position.set(0, CORRIDOR_HEIGHT - 0.05, i);
       group.add(lamp);
 
-      const light = new THREE.PointLight(0xff3333, 12.0, 30); // Increased intensity for better visibility
+      const light = new THREE.PointLight(0xff3333, 12.0, 30);
       light.position.set(0, CORRIDOR_HEIGHT - 0.5, i);
       group.add(light);
     }
@@ -261,17 +277,11 @@ export default function GameScene() {
     group.position.z = z + SEGMENT_LENGTH / 2;
     engineRef.current.scene.add(group);
     
-    return {
-      mesh: group,
-      startZ: z,
-      endZ: z + SEGMENT_LENGTH
-    };
+    return { mesh: group, startZ: z, endZ: z + SEGMENT_LENGTH };
   };
 
   const createCollapseWall = () => {
     const { wallGroup, wallGrid, wallLight, scene } = engineRef.current;
-    
-    // Core Wall Plane
     const wallGeo = new THREE.PlaneGeometry(12, 8);
     const wallMat = new THREE.MeshStandardMaterial({
       color: 0xff0000,
@@ -284,7 +294,6 @@ export default function GameScene() {
     const wallPlane = new THREE.Mesh(wallGeo, wallMat);
     wallGroup.add(wallPlane);
 
-    // Energy Grid Cylinders
     const cylinderMat = new THREE.MeshStandardMaterial({
       color: 0xff003c,
       emissive: 0xff003c,
@@ -293,7 +302,6 @@ export default function GameScene() {
       opacity: 1.0
     });
 
-    // 15 bars as requested
     for (let i = 0; i < 8; i++) {
       const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 12), cylinderMat.clone());
       bar.rotation.z = Math.PI / 2;
@@ -307,7 +315,6 @@ export default function GameScene() {
     }
     wallGroup.add(wallGrid);
 
-    // Dynamic Tracking Spotlight
     wallLight.angle = Math.PI / 3;
     wallLight.penumbra = 0.5;
     wallLight.decay = 1.5;
@@ -352,7 +359,6 @@ export default function GameScene() {
       }
       
       const zombie = zombies.find(z => z.mesh === targetMesh);
-
       if (zombie) {
         zombie.hp -= 1;
         zombie.mesh.position.z += 1.5;
@@ -419,7 +425,7 @@ export default function GameScene() {
   }, []);
 
   const initEngine = () => {
-    const { scene, camera, player, weaponGroup, muzzleFlash, segments, renderer: existingRenderer } = engineRef.current;
+    const { scene, camera, player, weaponGroup, muzzleFlash, segments, renderer: existingRenderer, ambientLight } = engineRef.current;
     
     if (existingRenderer) return;
 
@@ -427,18 +433,15 @@ export default function GameScene() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     containerRef.current?.appendChild(renderer.domElement);
     engineRef.current.renderer = renderer;
 
     scene.background = new THREE.Color(0x0a0505);
-    scene.fog = new THREE.FogExp2(0x0a0505, 0.008); // Reduced density for clarity
+    scene.fog = new THREE.FogExp2(0x0a0505, 0.012); 
 
-    const ambient = new THREE.AmbientLight(0xffffff, 1.2); // Increased ambient light
-    scene.add(ambient);
+    scene.add(ambientLight);
 
     player.position.set(0, 1.8, 0);
-    player.rotation.y = 0; // Face forward (+Z)
     player.add(camera);
     scene.add(player);
 
@@ -448,14 +451,11 @@ export default function GameScene() {
     gun.position.set(0.3, -0.2, 0.4);
     gun.castShadow = true;
     weaponGroup.add(gun);
-    
     muzzleFlash.position.set(0.3, -0.2, 0.6);
     weaponGroup.add(muzzleFlash);
-    
     camera.add(weaponGroup);
 
     createCollapseWall();
-
     for (let i = 0; i < 4; i++) {
       segments.push(createSegment(i * SEGMENT_LENGTH));
     }
@@ -477,14 +477,8 @@ export default function GameScene() {
     containerRef.current?.addEventListener('mousedown', (e) => {
       const current = stateRef.current;
       if (!current.isGameActive || current.isGameOver) return;
-
       if (document.pointerLockElement !== containerRef.current) {
-        try {
-          const result = containerRef.current?.requestPointerLock();
-          if (result instanceof Promise) {
-            result.catch(() => {});
-          }
-        } catch (err) {}
+        try { containerRef.current?.requestPointerLock(); } catch (err) {}
       }
       handleShoot();
     });
@@ -499,12 +493,55 @@ export default function GameScene() {
         return;
       }
 
-      if (performance.now() - current.lastStageUpdateTime > current.stageDuration) {
+      // PROGRESSION ENGINE LOGIC
+      const newTimeInStage = current.progression.timeInCurrentStage + delta;
+      if (newTimeInStage >= current.progression.stageDurationThreshold) {
+        // Trigger Next Stage
+        const nextStage = current.progression.currentStage + 1;
+        const multiplier = Math.pow(1.5, nextStage - 1);
+        const spawnCap = Math.min(30, Math.round(6 * multiplier));
+        const spawnInterval = Math.max(0.35, 3.0 / multiplier);
+        const wallSpeed = 2.5 * Math.pow(1.5, nextStage - 1);
+
+        const titles = [
+          'CONTAINMENT BREACH',
+          'HORDE DETECTED',
+          'CRITICAL OVERRUN',
+          'OUTBREAK MAXIMUM',
+          'SURVIVAL IMPOSSIBLE'
+        ];
+        const newTitle = titles[Math.min(titles.length - 1, nextStage - 1)];
+
+        // Visual Tactic Feedback
+        engineRef.current.ambientLight.intensity *= 0.85;
+        (scene.fog as THREE.FogExp2).density += 0.01;
+
         setGameState(prev => ({
           ...prev,
-          stage: prev.stage + 1,
-          lastStageUpdateTime: performance.now(),
-          currentSpawnInterval: Math.max(prev.minSpawnInterval, prev.baseSpawnInterval - (prev.stage * 250))
+          showAlert: true,
+          stageTitle: newTitle,
+          wallBaseSpeed: wallSpeed,
+          progression: {
+            ...prev.progression,
+            currentStage: nextStage,
+            timeInCurrentStage: 0,
+            globalDifficultyMultiplier: multiplier,
+            spawnCap: spawnCap,
+            currentSpawnInterval: spawnInterval
+          }
+        }));
+
+        setTimeout(() => {
+          setGameState(prev => ({ ...prev, showAlert: false }));
+        }, 1500);
+
+      } else {
+        setGameState(prev => ({
+          ...prev,
+          progression: {
+            ...prev.progression,
+            timeInCurrentStage: newTimeInStage
+          }
         }));
       }
 
@@ -518,7 +555,6 @@ export default function GameScene() {
       if (moveDir.length() > 0) {
         moveDir.normalize().applyEuler(new THREE.Euler(0, player.rotation.y, 0));
         player.position.add(moveDir.multiplyScalar(current.speed * delta));
-        
         engineRef.current.bobTimer += delta * 12.0;
         camera.position.y = 1.8 + Math.sin(engineRef.current.bobTimer) * 0.08;
       } else {
@@ -527,31 +563,23 @@ export default function GameScene() {
 
       player.position.x = Math.max(-3.7, Math.min(3.7, player.position.x));
 
-      const wallSpeed = current.wallBaseSpeed + (current.stage * 0.4);
+      const currentWallSpeed = current.wallBaseSpeed;
       setGameState(prev => {
-        let newWallZ = prev.wallZ + wallSpeed * delta;
+        let newWallZ = prev.wallZ + currentWallSpeed * delta;
         if (player.position.z - newWallZ > prev.wallMaxDistanceBehind) {
           newWallZ = player.position.z - prev.wallMaxDistanceBehind;
         }
-        return { ...prev, wallZ: newWallZ, wallCurrentSpeed: wallSpeed };
+        return { ...prev, wallZ: newWallZ, wallCurrentSpeed: currentWallSpeed };
       });
       setDistToWall(player.position.z - current.wallZ);
 
       engineRef.current.wallGroup.position.z = current.wallZ;
       const wallPulse = 0.6 + Math.sin(performance.now() * 0.008) * 0.4;
       engineRef.current.wallGrid.children.forEach(child => {
-        if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
-          child.material.opacity = wallPulse;
-        }
+        if (child instanceof THREE.Mesh) child.material.opacity = wallPulse;
       });
 
-      const dangerFactor = Math.max(0, 1 - (player.position.z - current.wallZ) / 35);
-      scene.fog.color.setHSL(0, 1, 0.05 + dangerFactor * 0.1);
-      (scene.fog as THREE.FogExp2).density = 0.008 + dangerFactor * 0.05;
-
-      if (player.position.z <= current.wallZ) {
-        handleGameOver();
-      }
+      if (player.position.z <= current.wallZ) handleGameOver();
 
       if (player.position.z - engineRef.current.segments[0].endZ > 15) {
         const old = engineRef.current.segments.shift()!;
@@ -567,7 +595,7 @@ export default function GameScene() {
         engineRef.current.segments.push(createSegment(last.endZ));
       }
 
-      if (performance.now() - current.lastSpawnTime > current.currentSpawnInterval && engineRef.current.zombies.length < current.maxActiveZombies) {
+      if (performance.now() - current.lastSpawnTime > current.progression.currentSpawnInterval * 1000 && engineRef.current.zombies.length < current.progression.spawnCap) {
         spawnZombie();
         setGameState(prev => ({ ...prev, lastSpawnTime: performance.now() }));
       }
@@ -619,11 +647,10 @@ export default function GameScene() {
         return true;
       });
 
-      weaponGroup.position.z = THREE.MathUtils.lerp(weaponGroup.position.z, 0.4, 0.15); // weapon baseline
+      weaponGroup.position.z = THREE.MathUtils.lerp(weaponGroup.position.z, 0.4, 0.15); 
       weaponGroup.rotation.x = THREE.MathUtils.lerp(weaponGroup.rotation.x, 0, 0.15);
 
       setGameState(prev => ({ ...prev, distance: Math.floor(player.position.z) }));
-
       renderer.render(scene, camera);
     };
     animate();
@@ -636,15 +663,12 @@ export default function GameScene() {
   };
 
   const restartGame = () => {
-    const { scene, zombies, particles, segments, player } = engineRef.current;
-    
+    const { scene, zombies, particles, segments, player, ambientLight } = engineRef.current;
     isGameOverTriggered.current = false;
     zombies.forEach(z => scene.remove(z.mesh));
     engineRef.current.zombies = [];
-    
     particles.forEach(p => scene.remove(p.mesh));
     engineRef.current.particles = [];
-    
     segments.forEach(s => {
       scene.remove(s.mesh);
       s.mesh.traverse(obj => {
@@ -663,10 +687,12 @@ export default function GameScene() {
       engineRef.current.segments.push(createSegment(i * SEGMENT_LENGTH));
     }
 
+    ambientLight.intensity = 1.2;
+    scene.fog = new THREE.FogExp2(0x0a0505, 0.012);
+
     setGameState({ 
       ...INITIAL_GAME_STATE, 
       isGameActive: true, 
-      lastStageUpdateTime: performance.now(),
       lastSpawnTime: performance.now(),
       startTime: performance.now()
     });
@@ -701,6 +727,13 @@ export default function GameScene() {
       )}
 
       {gameState.isGameActive && <HUD state={gameState} distToWall={distToWall} />}
+
+      {gameState.showAlert && (
+        <div className="stage-alert">
+          ALERT: {gameState.stageTitle}
+          <div className="stage-multiplier">MULTIPLIER {gameState.progression.globalDifficultyMultiplier.toFixed(2)}x</div>
+        </div>
+      )}
 
       {gameState.isGameOver && (
         <GameOver 

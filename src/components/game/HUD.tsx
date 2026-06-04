@@ -24,7 +24,7 @@ export default function HUD({ state, distToWall }: HUDProps) {
         </span>
         <span className="hud-label" style={{ marginTop: '10px' }}>Lockdown Stage</span>
         <span id="level-value" className="hud-value" style={{ fontSize: '1.2rem', color: 'var(--red-emergency)' }}>
-          STAGE {state.level}
+          STAGE {state.progression.currentStage}
         </span>
       </div>
 

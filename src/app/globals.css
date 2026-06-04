@@ -54,12 +54,10 @@ body {
   100% { opacity: 1; }
 }
 
-@keyframes damage-shake {
-  0% { transform: translate(0, 0); }
-  25% { transform: translate(-5px, 5px); }
-  50% { transform: translate(5px, -5px); }
-  75% { transform: translate(-5px, -5px); }
-  100% { transform: translate(0, 0); }
+@keyframes scale-pop {
+  0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+  20% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
 }
 
 /* --- START SCREEN --- */
@@ -251,6 +249,27 @@ body {
   letter-spacing: 2px;
   text-shadow: 0 0 5px #ff0000;
   animation: blink-danger 0.4s infinite alternate;
+}
+
+.stage-alert {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 100;
+  color: var(--red-emergency);
+  font-size: 3rem;
+  font-weight: bold;
+  text-align: center;
+  text-shadow: 0 0 20px var(--red-glow);
+  pointer-events: none;
+  animation: scale-pop 1.5s forwards;
+}
+
+.stage-multiplier {
+  font-size: 1.5rem;
+  color: #fff;
+  letter-spacing: 2px;
 }
 
 /* --- GAME OVER --- */
