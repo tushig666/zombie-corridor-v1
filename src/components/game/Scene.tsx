@@ -89,9 +89,10 @@ export default function GameScene() {
   }, [gameState.musicVolume]);
 
   useEffect(() => {
-    const rifleUrl = "https://cdn.freesound.org/previews/855/855654_11861213-lq.mp3";
-    const shotgunUrl = "https://cdn.freesound.org/previews/668/668353_11535496-lq.mp3";
-    const ak47Url = "https://cdn.freesound.org/previews/507/507137_10816912-lq.mp3";
+    // Updated sound assets with high-intensity MyInstants sources
+    const rifleUrl = "https://www.myinstants.com/media/sounds/real-gunshot.mp3";
+    const shotgunUrl = "https://www.myinstants.com/media/sounds/gunshottttt-97863.mp3";
+    const ak47Url = "https://www.myinstants.com/media/sounds/ak-47-burst-52694.mp3";
     const zombieUrl = "https://cdn.freesound.org/previews/315/315847_3506994-lq.mp3";
 
     const createPool = (url: string, size: number) => {
@@ -503,7 +504,6 @@ export default function GameScene() {
     scene.fog = new THREE.FogExp2(0x0a0505, 0.012);
     scene.add(engineRef.current.ambientLight);
 
-    // Root Cause Fix: Ground the player and position the camera locally for 4.2m eye level
     player.position.set(0, 0, 0); 
     player.rotation.y = Math.PI; 
     camera.rotation.order = 'YXZ';
