@@ -8,9 +8,9 @@ import HUD from './HUD';
 import GameOver from './GameOver';
 
 // Constants
-const SEGMENT_LENGTH = 40;
-const CORRIDOR_WIDTH = 12;
-const CORRIDOR_HEIGHT = 13.5; 
+const SEGMENT_LENGTH = 30;
+const CORRIDOR_WIDTH = 8;
+const CORRIDOR_HEIGHT = 13.5; // 1.5x height as requested earlier (original v2 was 5.5, 9 was intermediate)
 
 interface ZombieInstance {
   mesh: THREE.Group;
@@ -231,7 +231,7 @@ export default function GameScene() {
 
     group.scale.setScalar(stats.scale);
     group.position.set(
-      (Math.random() - 0.5) * (CORRIDOR_WIDTH - 4.0),
+      (Math.random() - 0.5) * (CORRIDOR_WIDTH - 2.0),
       0,
       player.position.z + 60 + Math.random() * 40
     );
@@ -265,21 +265,28 @@ export default function GameScene() {
 
   const createSegment = (z: number) => {
     const group = new THREE.Group();
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x111215, metalness: 0.8, roughness: 0.8 });
-    const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x15161a, metalness: 0.2, roughness: 0.9 });
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0x222429, metalness: 0.5, roughness: 0.7 });
+    
+    // Materials
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x111215, roughness: 0.8, metalness: 0.8 });
+    const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x15161a, roughness: 0.9, metalness: 0.2 });
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x222429, roughness: 0.7, metalness: 0.5 });
+    const pillarMat = new THREE.MeshStandardMaterial({ color: 0x0f1012, roughness: 0.6, metalness: 0.8 });
     const ledMat = new THREE.MeshStandardMaterial({ color: 0xff003c, emissive: 0xff002b, emissiveIntensity: 2.5 });
+    const lampMat = new THREE.MeshStandardMaterial({ color: 0xff0022, emissive: 0xff0000, emissiveIntensity: 1.0 });
 
+    // Floor
     const floor = new THREE.Mesh(new THREE.BoxGeometry(CORRIDOR_WIDTH, 0.2, SEGMENT_LENGTH), floorMat);
     floor.position.y = -0.1;
     floor.receiveShadow = true;
     group.add(floor);
 
+    // Ceiling
     const ceiling = new THREE.Mesh(new THREE.BoxGeometry(CORRIDOR_WIDTH, 0.2, SEGMENT_LENGTH), ceilingMat);
     ceiling.position.y = CORRIDOR_HEIGHT;
     ceiling.receiveShadow = true;
     group.add(ceiling);
 
+    // Walls
     const lWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, CORRIDOR_HEIGHT, SEGMENT_LENGTH), wallMat);
     lWall.position.x = -CORRIDOR_WIDTH / 2 - 0.1;
     lWall.position.y = CORRIDOR_HEIGHT / 2;
@@ -288,17 +295,54 @@ export default function GameScene() {
 
     const rWall = lWall.clone();
     rWall.position.x = CORRIDOR_WIDTH / 2 + 0.1;
-    rWall.position.y = CORRIDOR_HEIGHT / 2;
-    rWall.receiveShadow = true;
     group.add(rWall);
 
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, SEGMENT_LENGTH), ledMat);
-    rail.position.set(-CORRIDOR_WIDTH / 2, 0.1, 0);
-    group.add(rail);
+    // Pillars & Beams
+    for (let i = 0; i <= SEGMENT_LENGTH; i += 6) {
+      const pZ = i - SEGMENT_LENGTH / 2;
+      
+      const lPillar = new THREE.Mesh(new THREE.BoxGeometry(0.4, CORRIDOR_HEIGHT, 0.6), pillarMat);
+      lPillar.position.set(-CORRIDOR_WIDTH / 2, CORRIDOR_HEIGHT / 2, pZ);
+      group.add(lPillar);
 
-    const light = new THREE.PointLight(0xff3333, 30.0, 35);
-    light.position.set(0, CORRIDOR_HEIGHT - 2.0, 0);
-    group.add(light);
+      const rPillar = lPillar.clone();
+      rPillar.position.x = CORRIDOR_WIDTH / 2;
+      group.add(rPillar);
+
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(CORRIDOR_WIDTH - 0.4, 0.3, 0.6), pillarMat);
+      beam.position.set(0, CORRIDOR_HEIGHT - 0.15, pZ);
+      group.add(beam);
+    }
+
+    // LED Corner Rails
+    const railGeo = new THREE.BoxGeometry(0.08, 0.08, SEGMENT_LENGTH);
+    const rail1 = new THREE.Mesh(railGeo, ledMat);
+    rail1.position.set(-CORRIDOR_WIDTH / 2 + 0.04, 0.04, 0);
+    group.add(rail1);
+    
+    const rail2 = rail1.clone();
+    rail2.position.x = CORRIDOR_WIDTH / 2 - 0.04;
+    group.add(rail2);
+
+    const rail3 = rail1.clone();
+    rail3.position.y = CORRIDOR_HEIGHT - 0.04;
+    group.add(rail3);
+
+    const rail4 = rail3.clone();
+    rail4.position.x = CORRIDOR_WIDTH / 2 - 0.04;
+    group.add(rail4);
+
+    // Ceiling Lights
+    for (let i = 5; i < SEGMENT_LENGTH; i += 10) {
+      const lZ = i - SEGMENT_LENGTH / 2;
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(1, 0.1, 1), lampMat);
+      lamp.position.set(0, CORRIDOR_HEIGHT - 0.05, lZ);
+      group.add(lamp);
+
+      const light = new THREE.PointLight(0xff0000, 15.0, 20);
+      light.position.set(0, CORRIDOR_HEIGHT - 1.0, lZ);
+      group.add(light);
+    }
 
     group.position.z = z + SEGMENT_LENGTH / 2;
     engineRef.current.scene.add(group);
@@ -386,7 +430,9 @@ export default function GameScene() {
     if (bgMusicRef.current) bgMusicRef.current.pause();
     setTimeout(() => {
       setGameState(prev => ({ ...prev, isGameOver: true, isGameActive: false }));
-      if (document.pointerLockElement) document.exitPointerLock();
+      if (document.pointerLockElement) {
+        try { document.exitPointerLock(); } catch(e) {}
+      }
     }, 0);
   }, []);
 
@@ -448,9 +494,7 @@ export default function GameScene() {
       if (document.pointerLockElement !== containerRef.current) {
         try {
           containerRef.current?.requestPointerLock();
-        } catch (e) {
-          // Silent catch for security errors in sandboxed frames
-        }
+        } catch (e) {}
       }
       handleShoot();
     });
