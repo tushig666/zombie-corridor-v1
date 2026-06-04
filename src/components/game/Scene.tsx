@@ -9,8 +9,8 @@ import GameOver from './GameOver';
 
 // Constants
 const SEGMENT_LENGTH = 30;
-const CORRIDOR_WIDTH = 12; // Wider corridor as requested
-const CORRIDOR_HEIGHT = 13.5; // 1.5x scale (9 * 1.5 = 13.5)
+const CORRIDOR_WIDTH = 12; 
+const CORRIDOR_HEIGHT = 13.5; 
 
 interface ZombieInstance {
   mesh: THREE.Group;
@@ -20,8 +20,8 @@ interface ZombieInstance {
   scoreValue: number;
   isDead: boolean;
   lastAttackTime: number;
-  leftArm: THREE.Mesh;
-  rightArm: THREE.Mesh;
+  leftArm: THREE.Group;
+  rightArm: THREE.Group;
   originalMaterials: Map<THREE.Mesh, THREE.Material>;
 }
 
@@ -137,12 +137,12 @@ export default function GameScene() {
 
   const createBloodSplatter = (position: THREE.Vector3) => {
     const { scene, particles } = engineRef.current;
-    const particleCount = 18;
-    const geometry = new THREE.BoxGeometry(0.12, 0.12, 0.12);
+    const particleCount = 20;
+    const geometry = new THREE.BoxGeometry(0.15, 0.15, 0.15);
     const material = new THREE.MeshStandardMaterial({ 
-      color: 0xff0000, 
-      emissive: 0xaa0000,
-      emissiveIntensity: 2.0,
+      color: 0x880000, 
+      emissive: 0xff0000,
+      emissiveIntensity: 3.5,
       transparent: true 
     });
 
@@ -151,15 +151,15 @@ export default function GameScene() {
       mesh.position.copy(position);
       
       const velocity = new THREE.Vector3(
-        (Math.random() - 0.5) * 7,
-        (Math.random() - 0.5) * 7 + 3,
-        (Math.random() - 0.5) * 7
+        (Math.random() - 0.5) * 8,
+        (Math.random() - 0.5) * 8 + 4,
+        (Math.random() - 0.5) * 8
       );
 
       particles.push({
         mesh,
         velocity,
-        life: 1.0
+        life: 1.2
       });
       scene.add(mesh);
     }
@@ -178,25 +178,25 @@ export default function GameScene() {
       barrel.position.set(0, 0.05, 0.4);
       group.add(body, barrel);
     } else if (type === 'Shotgun') {
-      const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.28, 0.8), metalMat);
-      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.9), metalMat);
+      const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.35, 1.0), metalMat);
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.1), metalMat);
       barrel.rotation.x = Math.PI / 2;
-      barrel.position.set(0, 0.08, 0.6);
-      const pump = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.15, 0.35), metalMat);
-      pump.position.set(0, -0.1, 0.5);
-      const railGlow = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.6), glowMat);
-      railGlow.position.set(0, 0.22, 0.1);
+      barrel.position.set(0, 0.12, 0.6);
+      const pump = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.2, 0.45), metalMat);
+      pump.position.set(0, -0.15, 0.55);
+      const railGlow = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.8), glowMat);
+      railGlow.position.set(0, 0.28, 0.1);
       group.add(receiver, barrel, pump, railGlow);
     } else if (type === 'AK47') {
-      const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.25, 1.0), metalMat);
-      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.2), metalMat);
+      const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.28, 1.2), metalMat);
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.4), metalMat);
       barrel.rotation.x = Math.PI / 2;
-      barrel.position.set(0, 0.08, 0.9);
-      const mag = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.45, 0.25), metalMat);
-      mag.position.set(0, -0.3, 0.2);
-      mag.rotation.x = -0.3;
-      const stock = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.35, 0.6), woodMat);
-      stock.position.set(0, -0.05, -0.6);
+      barrel.position.set(0, 0.1, 1.0);
+      const mag = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.55, 0.3), metalMat);
+      mag.position.set(0, -0.35, 0.3);
+      mag.rotation.x = -0.4;
+      const stock = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.4, 0.8), woodMat);
+      stock.position.set(0, -0.08, -0.8);
       group.add(receiver, barrel, mag, stock);
     }
 
@@ -225,43 +225,66 @@ export default function GameScene() {
     const scoreValue = Math.round(stats.scoreValue * multiplier);
 
     const group = new THREE.Group();
-    const skinMat = new THREE.MeshStandardMaterial({ color: 0x6a6c6e }); 
-    const clothingMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a }); 
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0x8a7a7a, roughness: 0.8 }); 
+    const muscleMat = new THREE.MeshStandardMaterial({ color: 0x4a0000, emissive: 0xff0000, emissiveIntensity: 0.5 }); 
 
-    // Head
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), skinMat);
-    head.position.y = 1.45;
+    // Head (Recessed and small)
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), skinMat);
+    head.position.y = 1.35;
+    head.position.z = 0.1;
     group.add(head);
 
-    // Torso
-    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.8, 0.3), clothingMat);
-    torso.position.y = 0.9;
+    // Torso (Massive and bulky)
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.9, 0.5), skinMat);
+    torso.position.y = 0.85;
     group.add(torso);
+    
+    // Muscle detail on torso
+    const gut = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.55), muscleMat);
+    gut.position.y = 0.7;
+    gut.position.z = 0.1;
+    group.add(gut);
 
-    // Arms
-    const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.8), skinMat);
-    leftArm.position.set(-0.35, 1.1, 0.4);
-    group.add(leftArm);
+    // Mutated Right Arm (Massive blade-like claw)
+    const rightArmGroup = new THREE.Group();
+    const rArmBase = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.8), skinMat);
+    rArmBase.position.set(0, 0, 0.4);
+    const rArmClaw = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 1.2), muscleMat);
+    rArmClaw.position.set(0, -0.2, 1.2);
+    rArmClaw.rotation.x = 0.4;
+    rightArmGroup.add(rArmBase, rArmClaw);
+    rightArmGroup.position.set(0.55, 1.1, 0);
+    group.add(rightArmGroup);
 
-    const rightArm = leftArm.clone();
-    rightArm.position.x = 0.35;
-    group.add(rightArm);
+    // Mutated Left Arm (Pincer-like tentacles)
+    const leftArmGroup = new THREE.Group();
+    const lArmBase = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.6), skinMat);
+    lArmBase.position.set(0, 0, 0.3);
+    const finger1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 1.0), muscleMat);
+    finger1.position.set(-0.1, 0.1, 1.0);
+    finger1.rotation.y = 0.2;
+    const finger2 = finger1.clone();
+    finger2.position.set(0.1, -0.1, 1.0);
+    finger2.rotation.y = -0.2;
+    leftArmGroup.add(lArmBase, finger1, finger2);
+    leftArmGroup.position.set(-0.55, 1.1, 0);
+    group.add(leftArmGroup);
 
-    // Legs
-    const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.6, 0.18), clothingMat);
-    leftLeg.position.set(-0.18, 0.3, 0);
+    // Thick Legs
+    const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.6, 0.3), skinMat);
+    leftLeg.position.set(-0.25, 0.3, 0);
     group.add(leftLeg);
     
     const rightLeg = leftLeg.clone();
-    rightLeg.position.x = 0.18;
+    rightLeg.position.x = 0.25;
     group.add(rightLeg);
 
     group.scale.setScalar(stats.scale);
     
     group.position.set(
-      (Math.random() - 0.5) * (CORRIDOR_WIDTH - 3),
+      (Math.random() - 0.5) * (CORRIDOR_WIDTH - 4),
       0,
-      player.position.z + 60 + Math.random() * 50
+      player.position.z + 65 + Math.random() * 45
     );
 
     const originalMaterials = new Map<THREE.Mesh, THREE.Material>();
@@ -280,8 +303,8 @@ export default function GameScene() {
       scoreValue,
       isDead: false,
       lastAttackTime: 0,
-      leftArm,
-      rightArm,
+      leftArm: leftArmGroup,
+      rightArm: rightArmGroup,
       originalMaterials
     };
 
@@ -318,7 +341,6 @@ export default function GameScene() {
     rWall.position.x = CORRIDOR_WIDTH / 2 + 0.1;
     group.add(rWall);
 
-    // Pillars & Beams
     for (let i = 0; i <= SEGMENT_LENGTH; i += 6) {
       const pZ = i - SEGMENT_LENGTH / 2;
       const lPillar = new THREE.Mesh(new THREE.BoxGeometry(0.4, CORRIDOR_HEIGHT, 0.6), pillarMat);
@@ -334,7 +356,6 @@ export default function GameScene() {
       group.add(beam);
     }
 
-    // Corner LED Rails
     const railGeo = new THREE.BoxGeometry(0.08, 0.08, SEGMENT_LENGTH);
     const rail1 = new THREE.Mesh(railGeo, ledMat);
     rail1.position.set(-CORRIDOR_WIDTH / 2 + 0.04, 0.04, 0);
@@ -352,14 +373,13 @@ export default function GameScene() {
     rail4.position.x = CORRIDOR_WIDTH / 2 - 0.04;
     group.add(rail4);
 
-    // Ceiling Lights
     for (let i = 5; i < SEGMENT_LENGTH; i += 10) {
       const lZ = i - SEGMENT_LENGTH / 2;
       const lamp = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 1.2), lampMat);
       lamp.position.set(0, CORRIDOR_HEIGHT - 0.05, lZ);
       group.add(lamp);
 
-      const light = new THREE.PointLight(0xff0000, 18.0, 25);
+      const light = new THREE.PointLight(0xff0000, 15.0, 25);
       light.position.set(0, CORRIDOR_HEIGHT - 1.0, lZ);
       group.add(light);
     }
@@ -424,10 +444,9 @@ export default function GameScene() {
       
       const zombie = zombies.find(z => z.mesh === targetMesh);
       if (zombie) {
-        // Shotgun does 3.5 damage (standard walkers have 3 HP)
         const damage = current.weaponType === 'Shotgun' ? 3.5 : 1.0;
         zombie.hp -= damage;
-        zombie.mesh.position.z += 1.0;
+        zombie.mesh.position.z += 1.2;
 
         setGameState(prev => ({ ...prev, shotsHit: prev.shotsHit + 1 }));
 
@@ -473,7 +492,6 @@ export default function GameScene() {
     scene.fog = new THREE.FogExp2(0x0a0505, 0.012);
     scene.add(engineRef.current.ambientLight);
 
-    // Initial orientation: Facing forward (+Z)
     player.position.set(0, 4.2, 0); 
     player.rotation.y = Math.PI; 
     camera.rotation.order = 'YXZ';
@@ -515,15 +533,13 @@ export default function GameScene() {
     window.addEventListener('mousemove', onMouseMove);
     
     containerRef.current?.addEventListener('mousedown', () => {
-      // Guarded pointer lock call with defensive catch and async handling
       if (document.pointerLockElement !== containerRef.current) {
         try {
-          const promise = containerRef.current?.requestPointerLock() as any;
-          if (promise && typeof promise.catch === 'function') {
-            promise.catch(() => {}); // Catch async rejection
+          if (typeof containerRef.current?.requestPointerLock === 'function') {
+            containerRef.current.requestPointerLock();
           }
         } catch (e) {
-          // Catch synchronous SecurityError if sandbox restrictions exist
+          // Gracefully handle security errors in restricted environments
         }
       }
       handleShoot();
@@ -539,7 +555,6 @@ export default function GameScene() {
         return;
       }
 
-      // Stage Progression Logic
       const newTimeInStage = current.progression.timeInCurrentStage + delta;
       if (newTimeInStage >= current.progression.stageDurationThreshold) {
         const nextStage = current.progression.currentStage + 1;
@@ -552,12 +567,12 @@ export default function GameScene() {
         
         if (nextStage === 2) {
           weaponType = 'Shotgun';
-          shotCooldown = 650; 
+          shotCooldown = 750; 
           weaponGroup.children.filter(child => child instanceof THREE.Group).forEach(child => weaponGroup.remove(child));
           weaponGroup.add(createWeaponModel('Shotgun'));
         } else if (nextStage === 3) {
           weaponType = 'AK47';
-          shotCooldown = 125;
+          shotCooldown = 135;
           weaponGroup.children.filter(child => child instanceof THREE.Group).forEach(child => weaponGroup.remove(child));
           weaponGroup.add(createWeaponModel('AK47'));
         }
@@ -582,9 +597,8 @@ export default function GameScene() {
         setGameState(prev => ({ ...prev, progression: { ...prev.progression, timeInCurrentStage: newTimeInStage } }));
       }
 
-      // Movement Logic
-      const moveDir = new THREE.Vector3();
       const keys = engineRef.current.keysPressed;
+      const moveDir = new THREE.Vector3();
       
       const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
       const right = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
@@ -603,7 +617,6 @@ export default function GameScene() {
 
       player.position.x = Math.max(-CORRIDOR_WIDTH / 2 + 1.8, Math.min(CORRIDOR_WIDTH / 2 - 1.8, player.position.x));
 
-      // Wall movement
       setGameState(prev => {
         let newWallZ = prev.wallZ + prev.wallCurrentSpeed * (1 + (prev.progression.currentStage - 1) * 0.2) * delta;
         if (player.position.z - newWallZ > prev.wallMaxDistanceBehind) newWallZ = player.position.z - prev.wallMaxDistanceBehind;
@@ -614,7 +627,6 @@ export default function GameScene() {
       engineRef.current.wallGroup.position.z = current.wallZ;
       if (player.position.z <= current.wallZ) handleGameOver();
 
-      // Infinite corridor recycling
       if (player.position.z - engineRef.current.segments[0].endZ > 10) {
         const old = engineRef.current.segments.shift()!;
         scene.remove(old.mesh);
@@ -622,13 +634,11 @@ export default function GameScene() {
         engineRef.current.segments.push(createSegment(last.endZ));
       }
 
-      // Spawning
       if (performance.now() - current.lastSpawnTime > current.progression.currentSpawnInterval * 1000 && engineRef.current.zombies.length < current.progression.spawnCap) {
         spawnZombie();
         setGameState(prev => ({ ...prev, lastSpawnTime: performance.now() }));
       }
 
-      // Zombie AI
       engineRef.current.zombies = engineRef.current.zombies.filter(z => {
         if (z.isDead) return false;
         if (z.mesh.position.z <= current.wallZ) { scene.remove(z.mesh); return false; }
@@ -638,18 +648,23 @@ export default function GameScene() {
         toPlayer.normalize();
         z.mesh.position.add(toPlayer.multiplyScalar(z.speed * delta));
         z.mesh.lookAt(player.position.x, 0, player.position.z);
-        if (dist < 3.2 && performance.now() - current.lastDamageTime > current.zombieDamageInterval) {
+
+        // Sinusoidal mutated limb movement
+        const wave = Math.sin(performance.now() * 0.005);
+        z.rightArm.rotation.x = 0.2 + wave * 0.3;
+        z.leftArm.rotation.x = -0.2 - wave * 0.3;
+
+        if (dist < 3.5 && performance.now() - current.lastDamageTime > current.zombieDamageInterval) {
           triggerDamageFlash();
-          const newHp = current.hp - 15;
+          const newHp = current.hp - 20;
           if (newHp <= 0) handleGameOver(); else setGameState(prev => ({ ...prev, hp: newHp, lastDamageTime: performance.now() }));
         }
         return true;
       });
 
-      // Particles Update
       engineRef.current.particles = engineRef.current.particles.filter(p => {
         p.mesh.position.add(p.velocity.clone().multiplyScalar(delta));
-        p.velocity.y -= 9.8 * delta; 
+        p.velocity.y -= 12.0 * delta; 
         p.life -= delta * 1.5;
         p.mesh.material.opacity = p.life;
         if (p.life <= 0) {
