@@ -11,7 +11,7 @@ import { postGamePerformanceReview, PostGamePerformanceReviewOutput } from '@/ai
 // Constants
 const SEGMENT_LENGTH = 30;
 const CORRIDOR_WIDTH = 8;
-const CORRIDOR_HEIGHT = 5;
+const CORRIDOR_HEIGHT = 5.5;
 
 interface ZombieInstance {
   mesh: THREE.Group;
@@ -23,6 +23,7 @@ interface ZombieInstance {
   lastAttackTime: number;
   leftArm: THREE.Mesh;
   rightArm: THREE.Mesh;
+  originalMaterials: Map<THREE.Mesh, THREE.Material>;
 }
 
 interface ParticleInstance {
@@ -44,7 +45,6 @@ export default function GameScene() {
   const [distToWall, setDistToWall] = useState(20);
   const [review, setReview] = useState<PostGamePerformanceReviewOutput | null>(null);
   
-  // Engine Refs
   const engineRef = useRef({
     scene: new THREE.Scene(),
     camera: new THREE.PerspectiveCamera(75, 1, 0.1, 1000),
@@ -89,35 +89,82 @@ export default function GameScene() {
     const speed = stats.baseSpeed * statMultiplier;
 
     const group = new THREE.Group();
-    const bodyGeo = new THREE.BoxGeometry(0.7, stats.height, 0.4);
-    const bodyMat = new THREE.MeshStandardMaterial({ color: stats.color });
-    const body = new THREE.Mesh(bodyGeo, bodyMat);
-    body.position.y = stats.height / 2;
-    group.add(body);
+    
+    // Materials
+    const skinMat = new THREE.MeshStandardMaterial({ color: stats.color, roughness: 0.8, metalness: 0.1 });
+    const clothingColors = [0xdd6b20, 0xe2e8f0, 0x2b6cb0];
+    const clothingMat = new THREE.MeshStandardMaterial({ color: clothingColors[Math.floor(Math.random() * clothingColors.length)], roughness: 0.9 });
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x00f3ff });
+    const mouthMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    const teethMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const ribMat = new THREE.MeshStandardMaterial({ color: 0xff3333, roughness: 0.9 });
 
-    const headGeo = new THREE.BoxGeometry(0.45, 0.45, 0.45);
-    const headMat = new THREE.MeshStandardMaterial({ color: '#ddaa88' });
-    const head = new THREE.Mesh(headGeo, headMat);
-    head.position.y = stats.height + 0.1;
+    // Head
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.44, 0.44), skinMat);
+    head.position.y = 1.45;
     group.add(head);
 
-    const armGeo = new THREE.BoxGeometry(0.2, 0.8, 0.2);
-    const armMat = new THREE.MeshStandardMaterial({ color: stats.color });
-    const leftArm = new THREE.Mesh(armGeo, armMat);
-    leftArm.position.set(-0.45, stats.height - 0.4, 0.3);
-    leftArm.rotation.x = -Math.PI / 2;
+    // Eyes
+    const lEye = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.05), eyeMat);
+    lEye.position.set(-0.12, 1.55, 0.22);
+    group.add(lEye);
+    const rEye = lEye.clone();
+    rEye.position.x = 0.12;
+    group.add(rEye);
+
+    // Mouth
+    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.14, 0.04), mouthMat);
+    mouth.position.set(0, 1.35, 0.22);
+    group.add(mouth);
+
+    // Teeth
+    const tTeeth = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.02, 0.01), teethMat);
+    tTeeth.position.set(0, 1.38, 0.24);
+    group.add(tTeeth);
+    const bTeeth = tTeeth.clone();
+    bTeeth.position.y = 1.32;
+    group.add(bTeeth);
+
+    // Torso
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.75, 0.35), clothingMat);
+    torso.position.y = 0.95;
+    group.add(torso);
+
+    // Rib cage exposure
+    const rib = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.25, 0.05), ribMat);
+    rib.position.set(0, 0.95, 0.18);
+    group.add(rib);
+
+    // Arms
+    const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.65), skinMat);
+    leftArm.position.set(-0.37, 1.2, 0.35);
     group.add(leftArm);
 
-    const rightArm = new THREE.Mesh(armGeo, armMat);
-    rightArm.position.set(0.45, stats.height - 0.4, 0.3);
-    rightArm.rotation.x = -Math.PI / 2;
+    const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.65), skinMat);
+    rightArm.position.set(0.37, 1.2, 0.35);
     group.add(rightArm);
 
+    // Legs
+    const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.6, 0.18), clothingMat);
+    leftLeg.position.set(-0.2, 0.3, 0);
+    group.add(leftLeg);
+    const rightLeg = leftLeg.clone();
+    rightLeg.position.x = 0.2;
+    group.add(rightLeg);
+
+    group.scale.setScalar(stats.scale);
     group.position.set(
-      (Math.random() - 0.5) * (CORRIDOR_WIDTH - 2),
+      (Math.random() - 0.5) * (CORRIDOR_WIDTH - 2.5),
       0,
       player.position.z + 28 + Math.random() * 37
     );
+
+    const originalMaterials = new Map<THREE.Mesh, THREE.Material>();
+    group.traverse(obj => {
+      if (obj instanceof THREE.Mesh) {
+        originalMaterials.set(obj, obj.material);
+      }
+    });
 
     const instance: ZombieInstance = {
       mesh: group,
@@ -128,7 +175,8 @@ export default function GameScene() {
       isDead: false,
       lastAttackTime: 0,
       leftArm,
-      rightArm
+      rightArm,
+      originalMaterials
     };
 
     scene.add(group);
@@ -137,33 +185,71 @@ export default function GameScene() {
 
   const createSegment = (z: number) => {
     const group = new THREE.Group();
-    const floorGeo = new THREE.PlaneGeometry(CORRIDOR_WIDTH, SEGMENT_LENGTH);
-    const wallGeo = new THREE.PlaneGeometry(SEGMENT_LENGTH, CORRIDOR_HEIGHT);
-    const metalMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.8, roughness: 0.2 });
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0x0d0d11 });
+    
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x111215, metalness: 0.8, roughness: 0.8 });
+    const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x15161a, metalness: 0.2, roughness: 0.9 });
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x222429, metalness: 0.5, roughness: 0.7 });
+    const beamMat = new THREE.MeshStandardMaterial({ color: 0x0f1012, metalness: 0.8, roughness: 0.6 });
+    const ledMat = new THREE.MeshStandardMaterial({ color: 0xff003c, emissive: 0xff002b, emissiveIntensity: 2.5 });
 
-    const floor = new THREE.Mesh(floorGeo, metalMat);
-    floor.rotation.x = -Math.PI / 2;
+    // Floor
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(CORRIDOR_WIDTH, 0.2, SEGMENT_LENGTH), floorMat);
+    floor.position.y = -0.1;
     group.add(floor);
 
-    const ceiling = new THREE.Mesh(floorGeo, wallMat);
+    // Ceiling
+    const ceiling = new THREE.Mesh(new THREE.BoxGeometry(CORRIDOR_WIDTH, 0.2, SEGMENT_LENGTH), ceilingMat);
     ceiling.position.y = CORRIDOR_HEIGHT;
-    ceiling.rotation.x = Math.PI / 2;
     group.add(ceiling);
 
-    const lWall = new THREE.Mesh(wallGeo, wallMat);
-    lWall.position.set(-CORRIDOR_WIDTH / 2, CORRIDOR_HEIGHT / 2, 0);
-    lWall.rotation.y = Math.PI / 2;
+    // Walls
+    const lWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, CORRIDOR_HEIGHT, SEGMENT_LENGTH), wallMat);
+    lWall.position.x = -CORRIDOR_WIDTH / 2 - 0.1;
+    lWall.position.y = CORRIDOR_HEIGHT / 2;
     group.add(lWall);
 
-    const rWall = new THREE.Mesh(wallGeo, wallMat);
-    rWall.position.set(CORRIDOR_WIDTH / 2, CORRIDOR_HEIGHT / 2, 0);
-    rWall.rotation.y = -Math.PI / 2;
+    const rWall = lWall.clone();
+    rWall.position.x = CORRIDOR_WIDTH / 2 + 0.1;
     group.add(rWall);
 
-    const light = new THREE.PointLight(0xff003c, 0.8, 15);
-    light.position.set(0, CORRIDOR_HEIGHT - 0.5, 0);
-    group.add(light);
+    // Pillars & Beams
+    for (let i = -SEGMENT_LENGTH / 2 + 3; i < SEGMENT_LENGTH / 2; i += 6) {
+      const lPillar = new THREE.Mesh(new THREE.BoxGeometry(0.4, CORRIDOR_HEIGHT, 0.6), beamMat);
+      lPillar.position.set(-CORRIDOR_WIDTH / 2, CORRIDOR_HEIGHT / 2, i);
+      group.add(lPillar);
+
+      const rPillar = lPillar.clone();
+      rPillar.position.x = CORRIDOR_WIDTH / 2;
+      group.add(rPillar);
+
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(CORRIDOR_WIDTH - 0.4, 0.3, 0.6), beamMat);
+      beam.position.set(0, CORRIDOR_HEIGHT - 0.2, i);
+      group.add(beam);
+    }
+
+    // LED Rails
+    const railPositions = [
+      { x: -CORRIDOR_WIDTH / 2, y: 0.1 },
+      { x: CORRIDOR_WIDTH / 2, y: 0.1 },
+      { x: -CORRIDOR_WIDTH / 2, y: CORRIDOR_HEIGHT - 0.1 },
+      { x: CORRIDOR_WIDTH / 2, y: CORRIDOR_HEIGHT - 0.1 }
+    ];
+    railPositions.forEach(pos => {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, SEGMENT_LENGTH), ledMat);
+      rail.position.set(pos.x, pos.y, 0);
+      group.add(rail);
+    });
+
+    // Ceiling Lamps
+    for (let i = -SEGMENT_LENGTH / 2 + 5; i < SEGMENT_LENGTH / 2; i += 10) {
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.05, 1.2), new THREE.MeshBasicMaterial({ color: 0xff0022 }));
+      lamp.position.set(0, CORRIDOR_HEIGHT - 0.05, i);
+      group.add(lamp);
+
+      const light = new THREE.PointLight(0xff0000, 1.2, 14);
+      light.position.set(0, CORRIDOR_HEIGHT - 0.5, i);
+      group.add(light);
+    }
 
     group.position.z = z + SEGMENT_LENGTH / 2;
     engineRef.current.scene.add(group);
@@ -197,12 +283,17 @@ export default function GameScene() {
 
     // Hitscan
     raycaster.setFromCamera({ x: 0, y: 0 }, camera);
-    const targets = zombies.filter(z => !z.isDead).map(z => z.mesh.children[0]);
-    const intersects = raycaster.intersectObjects(targets);
+    const targets = zombies.filter(z => !z.isDead).map(z => z.mesh);
+    const intersects = raycaster.intersectObjects(targets, true);
 
     if (intersects.length > 0) {
       const hit = intersects[0];
-      const targetMesh = hit.object.parent as THREE.Group;
+      // Walk up to find the zombie instance
+      let targetMesh = hit.object;
+      while (targetMesh.parent && !(targetMesh instanceof THREE.Group && zombies.some(z => z.mesh === targetMesh))) {
+        targetMesh = targetMesh.parent;
+      }
+      
       const zombie = zombies.find(z => z.mesh === targetMesh);
 
       if (zombie) {
@@ -211,11 +302,21 @@ export default function GameScene() {
 
         setGameState(prev => ({ ...prev, shotsHit: prev.shotsHit + 1 }));
 
-        // Hit Flash
-        const originalMat = (hit.object as THREE.Mesh).material;
-        (hit.object as THREE.Mesh).material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        // Hit Flash override
+        const flashMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 8.0 });
+        zombie.mesh.traverse(obj => {
+          if (obj instanceof THREE.Mesh) obj.material = flashMat;
+        });
+
         setTimeout(() => {
-          if (zombie && !zombie.isDead) (hit.object as THREE.Mesh).material = originalMat;
+          if (zombie && !zombie.isDead) {
+            zombie.mesh.traverse(obj => {
+              if (obj instanceof THREE.Mesh) {
+                const orig = zombie.originalMaterials.get(obj);
+                if (orig) obj.material = orig;
+              }
+            });
+          }
         }, 80);
 
         // Particles
@@ -250,8 +351,12 @@ export default function GameScene() {
 
   const handleGameOver = async () => {
     const finalState = stateRef.current;
+    if (finalState.isGameOver) return;
+    
     setGameState(prev => ({ ...prev, isGameOver: true, isGameActive: false }));
-    document.exitPointerLock();
+    try {
+      document.exitPointerLock();
+    } catch(e) {}
 
     // Trigger AI Performance Review
     const survivalTime = Math.floor((performance.now() - finalState.startTime) / 1000);
@@ -285,7 +390,7 @@ export default function GameScene() {
     scene.background = new THREE.Color(0x050101);
     scene.fog = new THREE.FogExp2(0x050101, 0.05);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.1);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.05);
     scene.add(ambient);
 
     // Player setup
@@ -311,8 +416,19 @@ export default function GameScene() {
     }
 
     // Input
-    window.addEventListener('keydown', (e) => engineRef.current.keysPressed[e.code] = true);
-    window.addEventListener('keyup', (e) => engineRef.current.keysPressed[e.code] = false);
+    const onKeyDown = (e: KeyboardEvent) => engineRef.current.keysPressed[e.code] = true;
+    const onKeyUp = (e: KeyboardEvent) => engineRef.current.keysPressed[e.code] = false;
+    const onMouseMove = (e: MouseEvent) => {
+      if (document.pointerLockElement === containerRef.current) {
+        player.rotation.y -= e.movementX * 0.002;
+        camera.rotation.x -= e.movementY * 0.002;
+        camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x));
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('mousemove', onMouseMove);
     
     containerRef.current?.addEventListener('mousedown', (e) => {
       const current = stateRef.current;
@@ -321,20 +437,9 @@ export default function GameScene() {
       if (document.pointerLockElement !== containerRef.current) {
         try {
           containerRef.current?.requestPointerLock();
-        } catch (err) {
-          // If sandboxed and blocked, just continue - the user can still click-to-shoot
-          console.warn("Pointer lock blocked by environment. Fallback to click-aim active.");
-        }
+        } catch (err) {}
       }
       handleShoot();
-    });
-
-    window.addEventListener('mousemove', (e) => {
-      if (document.pointerLockElement === containerRef.current) {
-        player.rotation.y -= e.movementX * 0.002;
-        camera.rotation.x -= e.movementY * 0.002;
-        camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x));
-      }
     });
 
     const animate = () => {
@@ -347,7 +452,7 @@ export default function GameScene() {
         return;
       }
 
-      // 1. Difficulty Scaling
+      // Difficulty Scaling
       if (performance.now() - current.lastStageUpdateTime > current.stageDuration) {
         setGameState(prev => ({
           ...prev,
@@ -357,7 +462,7 @@ export default function GameScene() {
         }));
       }
 
-      // 2. Player Movement
+      // Player Movement
       const moveDir = new THREE.Vector3();
       const keys = engineRef.current.keysPressed;
       if (keys['KeyW']) moveDir.z -= 1;
@@ -379,7 +484,7 @@ export default function GameScene() {
       // Boundary Clamping
       player.position.x = Math.max(-3.7, Math.min(3.7, player.position.x));
 
-      // 3. Wall Logic
+      // Wall Logic
       const wallSpeed = current.wallBaseSpeed + (current.stage * 0.4);
       setGameState(prev => {
         let newWallZ = prev.wallZ + wallSpeed * delta;
@@ -394,29 +499,28 @@ export default function GameScene() {
         handleGameOver();
       }
 
-      // 4. Procedural Corridor
+      // Procedural Corridor
       if (player.position.z - engineRef.current.segments[0].endZ > 15) {
         const old = engineRef.current.segments.shift()!;
         scene.remove(old.mesh);
         old.mesh.traverse(obj => {
-          if ((obj as THREE.Mesh).geometry) (obj as THREE.Mesh).geometry.dispose();
-          if ((obj as THREE.Mesh).material) {
-            const mat = (obj as THREE.Mesh).material;
-            if (Array.isArray(mat)) mat.forEach(m => m.dispose());
-            else mat.dispose();
+          if (obj instanceof THREE.Mesh) {
+            obj.geometry.dispose();
+            if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+            else obj.material.dispose();
           }
         });
         const last = engineRef.current.segments[engineRef.current.segments.length - 1];
         engineRef.current.segments.push(createSegment(last.endZ));
       }
 
-      // 5. Spawning
+      // Spawning
       if (performance.now() - current.lastSpawnTime > current.currentSpawnInterval && engineRef.current.zombies.length < current.maxActiveZombies) {
         spawnZombie();
         setGameState(prev => ({ ...prev, lastSpawnTime: performance.now() }));
       }
 
-      // 6. Zombie AI & Combat
+      // Zombie AI & Combat
       engineRef.current.zombies = engineRef.current.zombies.filter(z => {
         if (z.isDead) return false;
         if (z.mesh.position.z <= current.wallZ) {
@@ -434,8 +538,8 @@ export default function GameScene() {
 
         // Animation
         const armSwing = Math.sin(performance.now() * 0.005 * z.speed) * 0.4;
-        z.leftArm.rotation.x = -Math.PI / 2 + armSwing;
-        z.rightArm.rotation.x = -Math.PI / 2 - armSwing;
+        z.leftArm.rotation.x = armSwing;
+        z.rightArm.rotation.x = -armSwing;
 
         // Damage
         if (dist < 1.6 && performance.now() - current.lastDamageTime > current.zombieDamageInterval) {
@@ -452,7 +556,7 @@ export default function GameScene() {
         return true;
       });
 
-      // 7. Particles & Recoil
+      // Particles & Recoil
       engineRef.current.particles = engineRef.current.particles.filter(p => {
         p.mesh.position.add(p.velocity.clone().multiplyScalar(delta));
         p.velocity.y -= 9.8 * delta;
@@ -473,6 +577,12 @@ export default function GameScene() {
       renderer.render(scene, camera);
     };
     animate();
+
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('mousemove', onMouseMove);
+    };
   };
 
   const restartGame = () => {
@@ -484,7 +594,16 @@ export default function GameScene() {
     particles.forEach(p => scene.remove(p.mesh));
     engineRef.current.particles = [];
     
-    segments.forEach(s => scene.remove(s.mesh));
+    segments.forEach(s => {
+      scene.remove(s.mesh);
+      s.mesh.traverse(obj => {
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry.dispose();
+          if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+          else obj.material.dispose();
+        }
+      });
+    });
     engineRef.current.segments = [];
     
     player.position.set(0, 1.8, 0);

@@ -6,15 +6,15 @@ export interface ZombieStats {
   baseHp: number;
   baseSpeed: number;
   scoreValue: number;
-  height: number;
-  color: string;
+  scale: number;
+  color: number;
 }
 
 export const ZOMBIE_CLASSES: Record<ZombieType, ZombieStats> = {
-  Walker: { type: 'Walker', baseHp: 3, baseSpeed: 2.7, scoreValue: 10, height: 1.8, color: '#33aa33' },
-  Runner: { type: 'Runner', baseHp: 2, baseSpeed: 4.8, scoreValue: 15, height: 1.6, color: '#66cc66' },
-  Tank: { type: 'Tank', baseHp: 6, baseSpeed: 1.8, scoreValue: 50, height: 2.5, color: '#226622' },
-  Elite: { type: 'Elite', baseHp: 8, baseSpeed: 3.2, scoreValue: 100, height: 2.0, color: '#aa33aa' },
+  Walker: { type: 'Walker', baseHp: 3, baseSpeed: 2.7, scoreValue: 10, scale: 1.4, color: 0x44c466 },
+  Runner: { type: 'Runner', baseHp: 2, baseSpeed: 4.8, scoreValue: 15, scale: 1.25, color: 0xff4c3b },
+  Tank: { type: 'Tank', baseHp: 6, baseSpeed: 1.8, scoreValue: 50, scale: 2.1, color: 0x8a63e5 },
+  Elite: { type: 'Elite', baseHp: 8, baseSpeed: 3.2, scoreValue: 100, scale: 1.75, color: 0xfcc623 },
 };
 
 export interface GameState {
