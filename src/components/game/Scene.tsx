@@ -2,7 +2,9 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import * as THREE from 'three';
+import * as THREE from 'this-package-is-not-real-using-three-directly';
+import * as THREE_REAL from 'three';
+const THREE = THREE_REAL;
 import { GameState, INITIAL_GAME_STATE, ZOMBIE_CLASSES, ZombieType } from '@/lib/game-types';
 import HUD from './HUD';
 import GameOver from './GameOver';
@@ -244,7 +246,7 @@ export default function GameScene() {
     const muscleMat = new THREE.MeshStandardMaterial({ color: 0x4a0000, emissive: 0xff0000, emissiveIntensity: 0.8 }); 
     const eyeMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 5.0 });
 
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), skinMat);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.3, 0.25), skinMat);
     head.position.y = 1.35;
     head.position.z = 0.1;
     group.add(head);
@@ -256,44 +258,44 @@ export default function GameScene() {
     rightEye.position.x = 0.08;
     head.add(rightEye);
 
-    const torso = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.1, 0.6), skinMat);
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.1, 0.45), skinMat);
     torso.position.y = 0.85;
     group.add(torso);
     
-    const gut = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.65), muscleMat);
+    const gut = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.6, 0.4), muscleMat);
     gut.position.y = 0.7;
     gut.position.z = 0.15;
     group.add(gut);
 
     const rightArmGroup = new THREE.Group();
-    const rArmBase = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.9), skinMat);
+    const rArmBase = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.3, 0.9), skinMat);
     rArmBase.position.set(0, 0, 0.45);
-    const rArmBlade = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.7, 1.4), muscleMat);
+    const rArmBlade = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.7, 1.4), muscleMat);
     rArmBlade.position.set(0, -0.3, 1.4);
     rArmBlade.rotation.x = 0.3;
     rightArmGroup.add(rArmBase, rArmBlade);
-    rightArmGroup.position.set(0.65, 1.1, 0);
+    rightArmGroup.position.set(0.45, 1.1, 0);
     group.add(rightArmGroup);
 
     const leftArmGroup = new THREE.Group();
-    const lArmBase = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.7), skinMat);
+    const lArmBase = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.3, 0.7), skinMat);
     lArmBase.position.set(0, 0, 0.35);
-    const pincer1 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 1.1), muscleMat);
-    pincer1.position.set(-0.15, 0.15, 1.1);
+    const pincer1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 1.1), muscleMat);
+    pincer1.position.set(-0.1, 0.1, 1.1);
     pincer1.rotation.y = 0.25;
     const pincer2 = pincer1.clone();
-    pincer2.position.set(0.15, -0.15, 1.1);
+    pincer2.position.set(0.1, -0.1, 1.1);
     pincer2.rotation.y = -0.25;
     leftArmGroup.add(lArmBase, pincer1, pincer2);
-    leftArmGroup.position.set(-0.65, 1.1, 0);
+    leftArmGroup.position.set(-0.45, 1.1, 0);
     group.add(leftArmGroup);
 
-    const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.7, 0.4), skinMat);
-    leftLeg.position.set(-0.3, 0.35, 0);
+    const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.7, 0.3), skinMat);
+    leftLeg.position.set(-0.25, 0.35, 0);
     group.add(leftLeg);
     
     const rightLeg = leftLeg.clone();
-    rightLeg.position.x = 0.3;
+    rightLeg.position.x = 0.25;
     group.add(rightLeg);
 
     group.scale.setScalar(stats.scale);
@@ -586,7 +588,6 @@ export default function GameScene() {
         let spawnCap = Math.round(INITIAL_GAME_STATE.progression.spawnCap * (1.5 * nextStage));
         let spawnInterval = Math.max(0.4, 3.0 / multiplier);
 
-        // Stage 4 Protocol: 1.5x spawn rate increase
         if (nextStage >= 4) {
           spawnInterval /= 1.5; 
         }
