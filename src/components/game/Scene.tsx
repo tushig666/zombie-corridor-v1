@@ -79,7 +79,7 @@ export default function GameScene() {
   useEffect(() => {
     // Gunshot pool
     const gPool: HTMLAudioElement[] = [];
-    const gunshotUrl = "https://www.myinstants.com/media/sounds/gsht.mp3";
+    const gunshotUrl = "https://www.myinstants.com/media/sounds/gsht-44263.mp3";
     for (let i = 0; i < 10; i++) {
       const audio = new Audio(gunshotUrl);
       audio.load();
@@ -169,7 +169,7 @@ export default function GameScene() {
 
     const group = new THREE.Group();
     
-    // Scary creepy design: Sickly pale palette
+    // Scary creepy design: Unified sickly pale palette
     const skinMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.9, metalness: 0.05 }); 
     const clothingMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 1.0 }); 
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 }); 
@@ -502,6 +502,9 @@ export default function GameScene() {
     scene.add(ambientLight);
 
     player.position.set(0, 1.8, 0);
+    player.rotation.y = 0; // Standard forward is +Z
+    camera.rotation.order = 'YXZ';
+    camera.rotation.y = Math.PI; // Face +Z
     player.add(camera);
     scene.add(player);
 
@@ -527,18 +530,18 @@ export default function GameScene() {
 
     const gun = new THREE.Group();
     gun.add(gunBody, barrel1, barrel2, glowRail);
-    gun.position.set(0.35, -0.25, -0.6); 
+    gun.position.set(0.35, -0.25, 0.6); // Moved forward to be visible (+Z)
     gun.castShadow = true;
     
     weaponGroup.add(gun);
-    muzzleFlash.position.set(0.35, -0.2, -1.0);
+    muzzleFlash.position.set(0.35, -0.2, 1.0);
     weaponGroup.add(muzzleFlash);
 
     const muzzleFlashMesh = new THREE.Mesh(
       new THREE.IcosahedronGeometry(0.12, 1),
       new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0 })
     );
-    muzzleFlashMesh.position.set(0.35, -0.2, -1.1);
+    muzzleFlashMesh.position.set(0.35, -0.2, 1.1);
     engineRef.current.muzzleFlashMesh = muzzleFlashMesh;
     weaponGroup.add(muzzleFlashMesh);
 
@@ -594,7 +597,7 @@ export default function GameScene() {
         const multiplier = Math.pow(1.5, nextStage - 1);
         const spawnCap = Math.min(30, Math.round(6 * multiplier));
         const spawnInterval = Math.max(0.35, 3.0 / multiplier);
-        const wallSpeed = 2.5 * Math.pow(1.5, nextStage - 1);
+        const wallSpeed = current.wallBaseSpeed * Math.pow(1.5, nextStage - 1);
 
         const titles = [
           'CONTAINMENT BREACH',
@@ -614,7 +617,7 @@ export default function GameScene() {
           ...prev,
           showAlert: true,
           stageTitle: newTitle,
-          wallBaseSpeed: wallSpeed,
+          wallCurrentSpeed: wallSpeed,
           progression: {
             ...prev.progression,
             currentStage: nextStage,
@@ -641,10 +644,10 @@ export default function GameScene() {
 
       const moveDir = new THREE.Vector3();
       const keys = engineRef.current.keysPressed;
-      if (keys['KeyW']) moveDir.z += 1; 
-      if (keys['KeyS']) moveDir.z -= 1; 
-      if (keys['KeyA']) moveDir.x += 1; 
-      if (keys['KeyD']) moveDir.x -= 1; 
+      if (keys['KeyW']) moveDir.z += 1; // Move forward (+Z)
+      if (keys['KeyS']) moveDir.z -= 1; // Move backward (-Z)
+      if (keys['KeyA']) moveDir.x += 1; // Strafe left
+      if (keys['KeyD']) moveDir.x -= 1; // Strafe right
 
       if (moveDir.length() > 0) {
         moveDir.normalize().applyEuler(new THREE.Euler(0, player.rotation.y, 0));
@@ -657,13 +660,13 @@ export default function GameScene() {
 
       player.position.x = Math.max(-3.7, Math.min(3.7, player.position.x));
 
-      const currentWallSpeed = current.wallBaseSpeed;
+      const currentWallSpeed = current.wallCurrentSpeed;
       setGameState(prev => {
         let newWallZ = prev.wallZ + currentWallSpeed * delta;
         if (player.position.z - newWallZ > prev.wallMaxDistanceBehind) {
           newWallZ = player.position.z - prev.wallMaxDistanceBehind;
         }
-        return { ...prev, wallZ: newWallZ, wallCurrentSpeed: currentWallSpeed };
+        return { ...prev, wallZ: newWallZ };
       });
       setDistToWall(player.position.z - current.wallZ);
 
@@ -741,7 +744,7 @@ export default function GameScene() {
         return true;
       });
 
-      weaponGroup.position.z = THREE.MathUtils.lerp(weaponGroup.position.z, -0.6, 0.15); 
+      weaponGroup.position.z = THREE.MathUtils.lerp(weaponGroup.position.z, 0.6, 0.15); 
       weaponGroup.rotation.x = THREE.MathUtils.lerp(weaponGroup.rotation.x, 0, 0.15);
 
       setGameState(prev => ({ ...prev, distance: Math.floor(player.position.z) }));
@@ -757,7 +760,7 @@ export default function GameScene() {
   };
 
   const restartGame = () => {
-    const { scene, zombies, particles, segments, player, ambientLight } = engineRef.current;
+    const { scene, zombies, particles, segments, player, camera, ambientLight } = engineRef.current;
     isGameOverTriggered.current = false;
     zombies.forEach(z => scene.remove(z.mesh));
     engineRef.current.zombies = [];
@@ -776,7 +779,8 @@ export default function GameScene() {
     engineRef.current.segments = [];
     
     player.position.set(0, 1.8, 0);
-    player.rotation.y = 0; 
+    player.rotation.y = 0; // Standard forward is +Z
+    camera.rotation.y = Math.PI; // Face forward (+Z)
     for (let i = 0; i < 4; i++) {
       engineRef.current.segments.push(createSegment(i * SEGMENT_LENGTH));
     }

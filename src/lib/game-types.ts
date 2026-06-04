@@ -62,15 +62,15 @@ export const INITIAL_GAME_STATE: GameState = {
   elapsedTime: 0,
   hp: 100,
   maxHp: 100,
-  speed: 14.0, // Increased player speed to manage 2x faster zombies
+  speed: 14.0, 
   zombieDamageInterval: 1200,
   lastDamageTime: 0,
   nextShotTime: 0,
   shotCooldown: 200,
   lastSpawnTime: 0,
   wallZ: -20,
-  wallBaseSpeed: 2.5,
-  wallCurrentSpeed: 2.5,
+  wallBaseSpeed: 3.25, // 2.5 * 1.3 = 3.25
+  wallCurrentSpeed: 3.25,
   wallMaxDistanceBehind: 35,
   shotsFired: 0,
   shotsHit: 0,
