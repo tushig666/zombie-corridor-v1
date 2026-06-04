@@ -41,6 +41,7 @@ interface SegmentInstance {
 export default function GameScene() {
   const containerRef = useRef<HTMLDivElement>(null);
   const flashRef = useRef<HTMLDivElement>(null);
+  const isGameOverTriggered = useRef(false);
   const [gameState, setGameState] = useState<GameState>(INITIAL_GAME_STATE);
   const [distToWall, setDistToWall] = useState(20);
   const [review, setReview] = useState<PostGamePerformanceReviewOutput | null>(null);
@@ -231,7 +232,7 @@ export default function GameScene() {
       lamp.position.set(0, CORRIDOR_HEIGHT - 0.05, i);
       group.add(lamp);
 
-      const light = new THREE.PointLight(0xff3333, 4.0, 20); // Increased intensity for visibility
+      const light = new THREE.PointLight(0xff3333, 4.0, 20);
       light.position.set(0, CORRIDOR_HEIGHT - 0.5, i);
       group.add(light);
     }
@@ -329,8 +330,10 @@ export default function GameScene() {
   };
 
   const handleGameOver = async () => {
+    if (isGameOverTriggered.current) return;
+    isGameOverTriggered.current = true;
+
     const finalState = stateRef.current;
-    if (finalState.isGameOver) return;
     
     setGameState(prev => ({ ...prev, isGameOver: true, isGameActive: false }));
     try {
@@ -368,9 +371,9 @@ export default function GameScene() {
     engineRef.current.renderer = renderer;
 
     scene.background = new THREE.Color(0x0a0505);
-    scene.fog = new THREE.FogExp2(0x0a0505, 0.01); // Reduced fog for better visibility
+    scene.fog = new THREE.FogExp2(0x0a0505, 0.01);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.25); // Increased ambient light
+    const ambient = new THREE.AmbientLight(0xffffff, 0.25);
     scene.add(ambient);
 
     player.position.set(0, 1.8, 0);
@@ -395,8 +398,7 @@ export default function GameScene() {
     const onKeyDown = (e: KeyboardEvent) => engineRef.current.keysPressed[e.code] = true;
     const onKeyUp = (e: KeyboardEvent) => engineRef.current.keysPressed[e.code] = false;
     const onMouseMove = (e: MouseEvent) => {
-      // Even if pointer lock is blocked, we try to support movement if the user has clicked inside
-      if (document.pointerLockElement === containerRef.current || !gameState.isGameOver) {
+      if (!isGameOverTriggered.current) {
         player.rotation.y -= e.movementX * 0.002;
         camera.rotation.x -= e.movementY * 0.002;
         camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x));
@@ -411,16 +413,13 @@ export default function GameScene() {
       const current = stateRef.current;
       if (!current.isGameActive || current.isGameOver) return;
 
-      // Wrap in try-catch to handle sandboxed environment pointer lock restriction
       if (document.pointerLockElement !== containerRef.current) {
         try {
           const promise = containerRef.current?.requestPointerLock() as any;
           if (promise && typeof promise.catch === 'function') {
-            promise.catch(() => {}); // Catch promise rejection if it's returned
+            promise.catch(() => {});
           }
-        } catch (err) {
-          // Silently fail if pointer lock is blocked by browser security/sandbox
-        }
+        } catch (err) {}
       }
       handleShoot();
     });
@@ -517,14 +516,16 @@ export default function GameScene() {
 
         if (dist < 1.6 && performance.now() - current.lastDamageTime > current.zombieDamageInterval) {
           triggerDamageFlash();
-          setGameState(prev => {
-            const newHp = prev.hp - 12;
-            if (newHp <= 0) {
-              handleGameOver();
-              return { ...prev, hp: 0 };
-            }
-            return { ...prev, hp: newHp, lastDamageTime: performance.now() };
-          });
+          const newHp = current.hp - 12;
+          if (newHp <= 0) {
+            handleGameOver();
+          } else {
+            setGameState(prev => ({
+              ...prev,
+              hp: newHp,
+              lastDamageTime: performance.now()
+            }));
+          }
         }
         return true;
       });
@@ -560,6 +561,7 @@ export default function GameScene() {
   const restartGame = () => {
     const { scene, zombies, particles, segments, player } = engineRef.current;
     
+    isGameOverTriggered.current = false;
     zombies.forEach(z => scene.remove(z.mesh));
     engineRef.current.zombies = [];
     
@@ -628,7 +630,10 @@ export default function GameScene() {
           state={gameState} 
           review={review} 
           onRestart={restartGame} 
-          onQuit={() => setGameState(INITIAL_GAME_STATE)} 
+          onQuit={() => {
+            isGameOverTriggered.current = false;
+            setGameState(INITIAL_GAME_STATE);
+          }} 
         />
       )}
 
