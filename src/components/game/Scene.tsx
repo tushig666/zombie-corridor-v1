@@ -9,8 +9,8 @@ import GameOver from './GameOver';
 
 // Constants
 const SEGMENT_LENGTH = 30;
-const CORRIDOR_WIDTH = 12; 
-const CORRIDOR_HEIGHT = 13.5; // 1.5x scale
+const CORRIDOR_WIDTH = 12; // Increased width as requested
+const CORRIDOR_HEIGHT = 13.5; // 1.5x scale (9 * 1.5 = 13.5)
 
 interface ZombieInstance {
   mesh: THREE.Group;
@@ -65,7 +65,6 @@ export default function GameScene() {
     bobTimer: 0,
     raycaster: new THREE.Raycaster(),
     wallGroup: new THREE.Group(),
-    wallGrid: new THREE.Group(),
     wallLight: new THREE.SpotLight(0xff003c, 8.0, 60),
     ambientLight: new THREE.AmbientLight(0xffffff, 0.45),
   });
@@ -77,6 +76,7 @@ export default function GameScene() {
   }, [gameState]);
 
   useEffect(() => {
+    // Audio pre-loading
     const gunshotUrl = "https://www.myinstants.com/media/sounds/gsht-44263.mp3";
     const gPool: HTMLAudioElement[] = [];
     for (let i = 0; i < 15; i++) {
@@ -249,7 +249,9 @@ export default function GameScene() {
     rightLeg.position.x = 0.18;
     group.add(rightLeg);
 
+    // Apply the 1.5x scale
     group.scale.setScalar(stats.scale);
+    
     group.position.set(
       (Math.random() - 0.5) * (CORRIDOR_WIDTH - 2.5),
       0,
@@ -361,7 +363,8 @@ export default function GameScene() {
 
   const createCollapseWall = () => {
     const { wallGroup, scene } = engineRef.current;
-    const wallGeo = new THREE.PlaneGeometry(25, 35); 
+    // Massive height for the collapse wall (1.5x)
+    const wallGeo = new THREE.PlaneGeometry(CORRIDOR_WIDTH * 2, CORRIDOR_HEIGHT * 2.5); 
     const wallMat = new THREE.MeshStandardMaterial({
       color: 0xff0000,
       emissive: 0xff003c,
@@ -389,6 +392,7 @@ export default function GameScene() {
 
     playGunshotSound();
 
+    // Weapon kickback and muzzle flash
     weaponGroup.position.z = -0.9;
     muzzleFlash.intensity = 20.0;
     if (muzzleFlashMesh) muzzleFlashMesh.material.opacity = 1.0;
@@ -413,6 +417,7 @@ export default function GameScene() {
       
       const zombie = zombies.find(z => z.mesh === targetMesh);
       if (zombie) {
+        // Shotgun does 3.5 damage (one-shots 3HP Walkers)
         const damage = current.weaponType === 'Shotgun' ? 3.5 : 1.0;
         zombie.hp -= damage;
         zombie.mesh.position.z += 1.2;
@@ -461,6 +466,7 @@ export default function GameScene() {
     scene.fog = new THREE.FogExp2(0x0a0505, 0.012);
     scene.add(engineRef.current.ambientLight);
 
+    // Initial orientation: Facing forward into corridor (+Z)
     player.position.set(0, 4.2, 0); 
     player.rotation.y = Math.PI; 
     camera.rotation.order = 'YXZ';
@@ -508,6 +514,7 @@ export default function GameScene() {
             containerRef.current.requestPointerLock();
           }
         } catch (e) {
+          // Gracefully handle security errors in restricted environments
           console.warn("Pointer lock could not be requested.");
         }
       }
@@ -524,6 +531,7 @@ export default function GameScene() {
         return;
       }
 
+      // Progression
       const newTimeInStage = current.progression.timeInCurrentStage + delta;
       if (newTimeInStage >= current.progression.stageDurationThreshold) {
         const nextStage = current.progression.currentStage + 1;
@@ -566,8 +574,11 @@ export default function GameScene() {
         setGameState(prev => ({ ...prev, progression: { ...prev.progression, timeInCurrentStage: newTimeInStage } }));
       }
 
+      // Movement logic
       const moveDir = new THREE.Vector3();
       const keys = engineRef.current.keysPressed;
+      
+      // Calculate directions relative to the 180-degree starting rotation
       const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
       const right = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(0, player.rotation.y, 0));
 
@@ -583,8 +594,10 @@ export default function GameScene() {
         camera.position.y = 4.2 + Math.sin(engineRef.current.bobTimer) * 0.08;
       }
 
+      // Constraints
       player.position.x = Math.max(-CORRIDOR_WIDTH / 2 + 1.8, Math.min(CORRIDOR_WIDTH / 2 - 1.8, player.position.x));
 
+      // Wall movement
       setGameState(prev => {
         let newWallZ = prev.wallZ + prev.wallCurrentSpeed * (1 + (prev.progression.currentStage - 1) * 0.2) * delta;
         if (player.position.z - newWallZ > prev.wallMaxDistanceBehind) newWallZ = player.position.z - prev.wallMaxDistanceBehind;
@@ -595,6 +608,7 @@ export default function GameScene() {
       engineRef.current.wallGroup.position.z = current.wallZ;
       if (player.position.z <= current.wallZ) handleGameOver();
 
+      // Infinite corridor recycling
       if (player.position.z - engineRef.current.segments[0].endZ > 10) {
         const old = engineRef.current.segments.shift()!;
         scene.remove(old.mesh);
@@ -602,11 +616,13 @@ export default function GameScene() {
         engineRef.current.segments.push(createSegment(last.endZ));
       }
 
+      // Spawning
       if (performance.now() - current.lastSpawnTime > current.progression.currentSpawnInterval * 1000 && engineRef.current.zombies.length < current.progression.spawnCap) {
         spawnZombie();
         setGameState(prev => ({ ...prev, lastSpawnTime: performance.now() }));
       }
 
+      // Zombie AI
       engineRef.current.zombies = engineRef.current.zombies.filter(z => {
         if (z.isDead) return false;
         if (z.mesh.position.z <= current.wallZ) { scene.remove(z.mesh); return false; }
@@ -624,6 +640,7 @@ export default function GameScene() {
         return true;
       });
 
+      // Particles
       engineRef.current.particles = engineRef.current.particles.filter(p => {
         p.mesh.position.add(p.velocity.clone().multiplyScalar(delta));
         p.velocity.y -= 9.8 * delta; 
@@ -636,6 +653,7 @@ export default function GameScene() {
         return true;
       });
 
+      // Weapon smoothing
       weaponGroup.position.z = THREE.MathUtils.lerp(weaponGroup.position.z, -0.6, 0.15); 
       setGameState(prev => ({ ...prev, distance: Math.floor(player.position.z) }));
       renderer.render(scene, camera);
