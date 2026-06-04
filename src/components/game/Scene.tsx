@@ -268,7 +268,6 @@ export default function GameScene() {
     rightLeg.position.x = 0.3;
     group.add(rightLeg);
 
-    // RESTORED CORRECT SCALE
     group.scale.setScalar(stats.scale);
     
     group.position.set(
@@ -525,11 +524,14 @@ export default function GameScene() {
     containerRef.current?.addEventListener('mousedown', () => {
       engineRef.current.isFiring = true;
       try {
-        if (typeof containerRef.current?.requestPointerLock === 'function') {
-          containerRef.current.requestPointerLock();
+        const lockPromise = containerRef.current?.requestPointerLock();
+        if (lockPromise && typeof lockPromise.catch === 'function') {
+          lockPromise.catch(() => {
+            // Silence sandboxed pointer lock errors
+          });
         }
       } catch (e) {
-        // Handle security errors silently
+        // Handle security errors in restricted environments silently
       }
       handleShoot();
     });
@@ -748,3 +750,4 @@ export default function GameScene() {
     </div>
   );
 }
+
