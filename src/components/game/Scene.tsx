@@ -89,7 +89,6 @@ export default function GameScene() {
   }, [gameState.musicVolume]);
 
   useEffect(() => {
-    // Updated sound assets with high-intensity MyInstants sources
     const rifleUrl = "https://www.myinstants.com/media/sounds/real-gunshot.mp3";
     const shotgunUrl = "https://www.myinstants.com/media/sounds/gunshottttt-97863.mp3";
     const ak47Url = "https://www.myinstants.com/media/sounds/ak-47-burst-52694.mp3";
@@ -234,7 +233,11 @@ export default function GameScene() {
   const spawnZombie = () => {
     const { scene, player, zombies } = engineRef.current;
     const current = stateRef.current;
-    const stats = ZOMBIE_CLASSES['Walker']; 
+    
+    // Choose zombie type randomly for variety, default to Walker
+    const types: ZombieType[] = ['Walker', 'Runner', 'Tank', 'Elite'];
+    const chosenType = types[Math.floor(Math.random() * types.length)];
+    const stats = ZOMBIE_CLASSES[chosenType]; 
     const multiplier = current.progression.globalDifficultyMultiplier;
 
     const group = new THREE.Group();
@@ -294,6 +297,7 @@ export default function GameScene() {
     rightLeg.position.x = 0.3;
     group.add(rightLeg);
 
+    // CRITICAL: Set the tall human-sized scale once on spawn
     group.scale.setScalar(stats.scale);
     
     group.position.set(
@@ -312,7 +316,7 @@ export default function GameScene() {
       mesh: group,
       hp: Math.round(stats.baseHp * multiplier),
       speed: stats.baseSpeed * multiplier,
-      type: 'Walker',
+      type: chosenType,
       scoreValue: Math.round(stats.scoreValue * multiplier),
       isDead: false,
       lastAttackTime: 0,
@@ -548,12 +552,18 @@ export default function GameScene() {
     window.addEventListener('keyup', onKeyUp);
     window.addEventListener('mousemove', onMouseMove);
     
-    containerRef.current?.addEventListener('mousedown', () => {
+    containerRef.current?.addEventListener('mousedown', async () => {
       engineRef.current.isFiring = true;
       
-      if (typeof containerRef.current?.requestPointerLock === 'function') {
-        containerRef.current.requestPointerLock()?.catch(() => {});
-      }
+      try {
+        if (typeof containerRef.current?.requestPointerLock === 'function') {
+          const promise = containerRef.current.requestPointerLock();
+          if (promise && promise.catch) {
+            promise.catch(() => {});
+          }
+        }
+      } catch (e) {}
+
       handleShoot();
     });
 
@@ -578,9 +588,9 @@ export default function GameScene() {
         let spawnCap = Math.round(INITIAL_GAME_STATE.progression.spawnCap * (1.5 * nextStage));
         let spawnInterval = Math.max(0.4, 3.0 / multiplier);
 
+        // Stage 5+ Protocol: Double spawn rate
         if (nextStage >= 5) {
           spawnInterval /= 2.0; 
-          spawnCap *= 2; 
         }
 
         let weaponType = current.weaponType;
