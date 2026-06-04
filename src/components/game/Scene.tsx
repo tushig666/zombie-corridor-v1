@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -8,6 +7,7 @@ import HUD from './HUD';
 import GameOver from './GameOver';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
+import { Settings, X } from 'lucide-react';
 
 // Constants for v2 Environment
 const SEGMENT_LENGTH = 30;
@@ -53,6 +53,7 @@ export default function GameScene() {
   const [gameState, setGameState] = useState<GameState>(INITIAL_GAME_STATE);
   const [distToWall, setDistToWall] = useState(20);
   const [isMuted, setIsMuted] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const isMutedRef = useRef(false);
   
   const engineRef = useRef({
@@ -100,7 +101,7 @@ export default function GameScene() {
       const pool: HTMLAudioElement[] = [];
       for (let i = 0; i < size; i++) {
         const audio = new Audio(url);
-        audio.load();
+        audio.preload = 'auto';
         pool.push(audio);
       }
       return pool;
@@ -137,7 +138,7 @@ export default function GameScene() {
 
     const sound = pool.find(a => a.paused || a.ended);
     if (sound) {
-      sound.volume = 0.8 * stateRef.current.sfxVolume;
+      sound.volume = stateRef.current.sfxVolume;
       sound.currentTime = 0;
       sound.play().catch(() => {});
     }
@@ -147,8 +148,8 @@ export default function GameScene() {
     if (isMutedRef.current) return;
     const sound = zombieSoundPoolRef.current.find(a => a.paused || a.ended);
     if (sound) {
-      sound.currentTime = 0;
       sound.volume = 0.5 * stateRef.current.sfxVolume;
+      sound.currentTime = 0;
       sound.play().catch(() => {});
     }
   };
@@ -552,10 +553,12 @@ export default function GameScene() {
       engineRef.current.isFiring = true;
       
       if (typeof containerRef.current?.requestPointerLock === 'function') {
-        const promise = containerRef.current.requestPointerLock() as any;
-        if (promise && typeof promise.catch === 'function') {
-          promise.catch(() => {});
-        }
+        try {
+          const promise = containerRef.current.requestPointerLock() as any;
+          if (promise && typeof promise.catch === 'function') {
+            promise.catch(() => {});
+          }
+        } catch (e) {}
       }
       handleShoot();
     });
@@ -649,7 +652,7 @@ export default function GameScene() {
       player.position.x = Math.max(-CORRIDOR_WIDTH / 2 + 1.8, Math.min(CORRIDOR_WIDTH / 2 - 1.8, player.position.x));
 
       setGameState(prev => {
-        let newWallZ = prev.wallZ + prev.wallCurrentSpeed * (1 + (prev.progression.currentStage - 1) * 0.2) * delta;
+        let newWallZ = prev.wallZ + prev.wallBaseSpeed * (1 + (prev.progression.currentStage - 1) * 0.2) * delta;
         if (player.position.z - newWallZ > prev.wallMaxDistanceBehind) newWallZ = player.position.z - prev.wallMaxDistanceBehind;
         return { ...prev, wallZ: newWallZ };
       });
@@ -679,7 +682,7 @@ export default function GameScene() {
         const dist = toPlayer.length();
         toPlayer.normalize();
         
-        const moveSpeed = z.speed * (current.progression.currentStage >= 5 ? 1.5 : 1.0);
+        const moveSpeed = z.speed; 
         z.mesh.position.add(toPlayer.multiplyScalar(moveSpeed * delta));
         z.mesh.lookAt(player.position.x, 0, player.position.z);
 
@@ -751,46 +754,83 @@ export default function GameScene() {
     <div id="game-container" className={gameState.isGameActive && !gameState.isGameOver ? 'playing-active' : ''} ref={containerRef}>
       <audio ref={bgMusicRef} src="https://www.myinstants.com/media/sounds/hardcore-trance-8.mp3" loop style={{ display: 'none' }} />
       <div id="damage-flash" ref={flashRef} />
+      
       <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
         <button className="btn" onClick={toggleMute} style={{ fontSize: '0.8rem', padding: '5px 15px' }}>
           {isMuted ? 'UNMUTE [M]' : 'MUTE [M]'}
         </button>
       </div>
+
       {!gameState.isGameActive && !gameState.isGameOver && (
         <div id="start-screen">
           <h1>ZOMBIE CORRIDOR</h1>
+          
+          <div style={{ position: 'absolute', top: '20px', right: '20px', zIndex: 200 }}>
+            <button 
+              onClick={() => setShowSettings(true)}
+              className="p-3 bg-black/40 border border-red-900/30 rounded-full text-red-500 hover:bg-red-900/20 transition-all"
+            >
+              <Settings className="w-6 h-6" />
+            </button>
+          </div>
+
           <button className="btn mb-8" onClick={restartGame}>ENTER LOCKDOWN ZONE</button>
           
-          <div className="w-full max-w-xs space-y-6 mt-8 p-6 bg-black/40 border border-red-900/30 rounded-lg">
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <Label className="text-red-500 uppercase tracking-widest text-[0.6rem] font-bold">Background Music</Label>
-                <span className="text-red-500 text-[0.6rem] tabular-nums">{Math.round(gameState.musicVolume * 100)}%</span>
+          {showSettings && (
+            <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => setShowSettings(false)}>
+              <div 
+                className="w-full max-w-xs space-y-6 p-8 bg-black/90 border-2 border-red-600 rounded-lg shadow-[0_0_50px_rgba(255,0,0,0.3)]"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-red-600 text-xl font-bold tracking-widest uppercase">Sound Settings</h3>
+                  <button onClick={() => setShowSettings(false)} className="text-red-500 hover:text-red-400">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-red-500 uppercase tracking-widest text-[0.6rem] font-bold">Background Music</Label>
+                      <span className="text-red-500 text-[0.6rem] tabular-nums">{Math.round(gameState.musicVolume * 100)}%</span>
+                    </div>
+                    <Slider 
+                      value={[gameState.musicVolume * 100]} 
+                      max={100} 
+                      step={1}
+                      onValueChange={([val]) => setGameState(prev => ({ ...prev, musicVolume: val / 100 }))}
+                      className="cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-red-500 uppercase tracking-widest text-[0.6rem] font-bold">Combat FX</Label>
+                      <span className="text-red-500 text-[0.6rem] tabular-nums">{Math.round(gameState.sfxVolume * 100)}%</span>
+                    </div>
+                    <Slider 
+                      value={[gameState.sfxVolume * 100]} 
+                      max={100} 
+                      step={1}
+                      onValueChange={([val]) => setGameState(prev => ({ ...prev, sfxVolume: val / 100 }))}
+                      className="cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => setShowSettings(false)}
+                  className="w-full py-2 mt-4 bg-red-600 text-black font-bold uppercase tracking-widest hover:bg-red-500 transition-all"
+                >
+                  Confirm Settings
+                </button>
               </div>
-              <Slider 
-                value={[gameState.musicVolume * 100]} 
-                max={100} 
-                step={1}
-                onValueChange={([val]) => setGameState(prev => ({ ...prev, musicVolume: val / 100 }))}
-                className="cursor-pointer"
-              />
             </div>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <Label className="text-red-500 uppercase tracking-widest text-[0.6rem] font-bold">Combat FX</Label>
-                <span className="text-red-500 text-[0.6rem] tabular-nums">{Math.round(gameState.sfxVolume * 100)}%</span>
-              </div>
-              <Slider 
-                value={[gameState.sfxVolume * 100]} 
-                max={100} 
-                step={1}
-                onValueChange={([val]) => setGameState(prev => ({ ...prev, sfxVolume: val / 100 }))}
-                className="cursor-pointer"
-              />
-            </div>
-          </div>
+          )}
         </div>
       )}
+
       {gameState.isGameActive && <HUD state={gameState} distToWall={distToWall} />}
       {gameState.showAlert && (
         <div className="stage-alert">
