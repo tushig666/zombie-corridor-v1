@@ -60,6 +60,10 @@ export default function GameScene() {
     muzzleFlash: new THREE.PointLight(0xffaa00, 0, 5),
     bobTimer: 0,
     raycaster: new THREE.Raycaster(),
+    // Collapse Wall components
+    wallGroup: new THREE.Group(),
+    wallGrid: new THREE.Group(),
+    wallLight: new THREE.SpotLight(0xff003c, 5.0, 45),
   });
 
   const stateRef = useRef<GameState>(INITIAL_GAME_STATE);
@@ -101,6 +105,7 @@ export default function GameScene() {
 
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.44, 0.44), skinMat);
     head.position.y = 1.45;
+    head.castShadow = true;
     group.add(head);
 
     const lEye = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.05), eyeMat);
@@ -123,6 +128,7 @@ export default function GameScene() {
 
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.75, 0.35), clothingMat);
     torso.position.y = 0.95;
+    torso.castShadow = true;
     group.add(torso);
 
     const rib = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.25, 0.05), ribMat);
@@ -131,30 +137,35 @@ export default function GameScene() {
 
     const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.65), skinMat);
     leftArm.position.set(-0.37, 1.2, 0.35);
+    leftArm.castShadow = true;
     group.add(leftArm);
 
     const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.65), skinMat);
     rightArm.position.set(0.37, 1.2, 0.35);
+    rightArm.castShadow = true;
     group.add(rightArm);
 
     const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.6, 0.18), clothingMat);
     leftLeg.position.set(-0.2, 0.3, 0);
+    leftLeg.castShadow = true;
     group.add(leftLeg);
     const rightLeg = leftLeg.clone();
     rightLeg.position.x = 0.2;
+    rightLeg.castShadow = true;
     group.add(rightLeg);
 
     group.scale.setScalar(stats.scale);
     group.position.set(
       (Math.random() - 0.5) * (CORRIDOR_WIDTH - 2.5),
       0,
-      player.position.z + 28 + Math.random() * 37
+      player.position.z + 35 + Math.random() * 40
     );
 
     const originalMaterials = new Map<THREE.Mesh, THREE.Material>();
     group.traverse(obj => {
       if (obj instanceof THREE.Mesh) {
         originalMaterials.set(obj, obj.material);
+        obj.castShadow = true;
       }
     });
 
@@ -186,32 +197,39 @@ export default function GameScene() {
 
     const floor = new THREE.Mesh(new THREE.BoxGeometry(CORRIDOR_WIDTH, 0.2, SEGMENT_LENGTH), floorMat);
     floor.position.y = -0.1;
+    floor.receiveShadow = true;
     group.add(floor);
 
     const ceiling = new THREE.Mesh(new THREE.BoxGeometry(CORRIDOR_WIDTH, 0.2, SEGMENT_LENGTH), ceilingMat);
     ceiling.position.y = CORRIDOR_HEIGHT;
+    ceiling.receiveShadow = true;
     group.add(ceiling);
 
     const lWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, CORRIDOR_HEIGHT, SEGMENT_LENGTH), wallMat);
     lWall.position.x = -CORRIDOR_WIDTH / 2 - 0.1;
     lWall.position.y = CORRIDOR_HEIGHT / 2;
+    lWall.receiveShadow = true;
     group.add(lWall);
 
     const rWall = lWall.clone();
     rWall.position.x = CORRIDOR_WIDTH / 2 + 0.1;
+    rWall.receiveShadow = true;
     group.add(rWall);
 
     for (let i = -SEGMENT_LENGTH / 2 + 3; i < SEGMENT_LENGTH / 2; i += 6) {
       const lPillar = new THREE.Mesh(new THREE.BoxGeometry(0.4, CORRIDOR_HEIGHT, 0.6), beamMat);
       lPillar.position.set(-CORRIDOR_WIDTH / 2, CORRIDOR_HEIGHT / 2, i);
+      lPillar.receiveShadow = true;
       group.add(lPillar);
 
       const rPillar = lPillar.clone();
       rPillar.position.x = CORRIDOR_WIDTH / 2;
+      rPillar.receiveShadow = true;
       group.add(rPillar);
 
       const beam = new THREE.Mesh(new THREE.BoxGeometry(CORRIDOR_WIDTH - 0.4, 0.3, 0.6), beamMat);
       beam.position.set(0, CORRIDOR_HEIGHT - 0.2, i);
+      beam.receiveShadow = true;
       group.add(beam);
     }
 
@@ -247,8 +265,63 @@ export default function GameScene() {
     };
   };
 
+  const createCollapseWall = () => {
+    const { wallGroup, wallGrid, wallLight, scene } = engineRef.current;
+    
+    // Core Wall Plane
+    const wallGeo = new THREE.PlaneGeometry(12, 8);
+    const wallMat = new THREE.MeshStandardMaterial({
+      color: 0xff0000,
+      emissive: 0xff003c,
+      emissiveIntensity: 5.0,
+      transparent: true,
+      opacity: 0.8,
+      side: THREE.DoubleSide
+    });
+    const wallPlane = new THREE.Mesh(wallGeo, wallMat);
+    wallGroup.add(wallPlane);
+
+    // Energy Grid Cylinders
+    const cylinderMat = new THREE.MeshStandardMaterial({
+      color: 0xff003c,
+      emissive: 0xff003c,
+      emissiveIntensity: 3.0,
+      transparent: true,
+      opacity: 1.0
+    });
+
+    // Horizontal bars
+    for (let i = 0; i < 8; i++) {
+      const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 12), cylinderMat.clone());
+      bar.rotation.z = Math.PI / 2;
+      bar.position.y = -4 + i * 1.15;
+      wallGrid.add(bar);
+    }
+    // Vertical bars
+    for (let i = 0; i < 8; i++) {
+      const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 8), cylinderMat.clone());
+      bar.position.x = -6 + i * 1.7;
+      wallGrid.add(bar);
+    }
+    wallGroup.add(wallGrid);
+
+    // Dynamic Tracking Spotlight
+    wallLight.angle = Math.PI / 3;
+    wallLight.penumbra = 0.5;
+    wallLight.decay = 1.5;
+    wallLight.castShadow = true;
+    wallLight.shadow.mapSize.width = 1024;
+    wallLight.shadow.mapSize.height = 1024;
+    wallLight.position.set(0, 0, 1); // Slightly in front of wall plane
+    wallLight.target.position.set(0, 0, 20);
+    wallGroup.add(wallLight);
+    wallGroup.add(wallLight.target);
+
+    scene.add(wallGroup);
+  };
+
   const handleShoot = () => {
-    const { raycaster, camera, scene, zombies, muzzleFlash, weaponGroup, particles } = engineRef.current;
+    const { raycaster, camera, zombies, weaponGroup, particles, scene } = engineRef.current;
     const current = stateRef.current;
 
     if (performance.now() < current.nextShotTime) return;
@@ -262,8 +335,8 @@ export default function GameScene() {
     weaponGroup.position.z = 0.15;
     weaponGroup.rotation.x = 0.2;
 
-    muzzleFlash.intensity = 3.5;
-    setTimeout(() => muzzleFlash.intensity = 0, 60);
+    engineRef.current.muzzleFlash.intensity = 3.5;
+    setTimeout(() => engineRef.current.muzzleFlash.intensity = 0, 60);
 
     raycaster.setFromCamera({ x: 0, y: 0 }, camera);
     const targets = zombies.filter(z => !z.isDead).map(z => z.mesh);
@@ -360,23 +433,27 @@ export default function GameScene() {
   };
 
   const initEngine = () => {
-    const { scene, camera, player, weaponGroup, muzzleFlash, segments } = engineRef.current;
+    const { scene, camera, player, weaponGroup, muzzleFlash, segments, renderer: existingRenderer } = engineRef.current;
     
-    if (engineRef.current.renderer) return;
+    if (existingRenderer) return;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     containerRef.current?.appendChild(renderer.domElement);
     engineRef.current.renderer = renderer;
 
     scene.background = new THREE.Color(0x0a0505);
-    scene.fog = new THREE.FogExp2(0x0a0505, 0.01);
+    scene.fog = new THREE.FogExp2(0x0a0505, 0.012);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.25);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.4);
     scene.add(ambient);
 
+    // Orientation Fix: Player starts facing +Z
     player.position.set(0, 1.8, 0);
+    player.rotation.y = Math.PI; // Face forward (+Z) relative to segment gen
     player.add(camera);
     scene.add(player);
 
@@ -384,12 +461,15 @@ export default function GameScene() {
     const gunMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
     const gun = new THREE.Mesh(gunGeo, gunMat);
     gun.position.set(0.3, -0.2, -0.4);
+    gun.castShadow = true;
     weaponGroup.add(gun);
     
     muzzleFlash.position.set(0.3, -0.2, -0.6);
     weaponGroup.add(muzzleFlash);
     
     camera.add(weaponGroup);
+
+    createCollapseWall();
 
     for (let i = 0; i < 4; i++) {
       segments.push(createSegment(i * SEGMENT_LENGTH));
@@ -415,10 +495,7 @@ export default function GameScene() {
 
       if (document.pointerLockElement !== containerRef.current) {
         try {
-          const promise = containerRef.current?.requestPointerLock() as any;
-          if (promise && typeof promise.catch === 'function') {
-            promise.catch(() => {});
-          }
+          containerRef.current?.requestPointerLock();
         } catch (err) {}
       }
       handleShoot();
@@ -445,7 +522,7 @@ export default function GameScene() {
 
       const moveDir = new THREE.Vector3();
       const keys = engineRef.current.keysPressed;
-      if (keys['KeyW']) moveDir.z -= 1;
+      if (keys['KeyW']) moveDir.z -= 1; // local -z is forward when player rotation is PI
       if (keys['KeyS']) moveDir.z += 1;
       if (keys['KeyA']) moveDir.x -= 1;
       if (keys['KeyD']) moveDir.x += 1;
@@ -462,6 +539,7 @@ export default function GameScene() {
 
       player.position.x = Math.max(-3.7, Math.min(3.7, player.position.x));
 
+      // Wall Movement & Proximity Clamping
       const wallSpeed = current.wallBaseSpeed + (current.stage * 0.4);
       setGameState(prev => {
         let newWallZ = prev.wallZ + wallSpeed * delta;
@@ -471,6 +549,20 @@ export default function GameScene() {
         return { ...prev, wallZ: newWallZ, wallCurrentSpeed: wallSpeed };
       });
       setDistToWall(player.position.z - current.wallZ);
+
+      // Update Wall Mesh Position & Visuals
+      engineRef.current.wallGroup.position.z = current.wallZ;
+      const wallPulse = 0.6 + Math.sin(performance.now() * 0.008) * 0.4;
+      engineRef.current.wallGrid.children.forEach(child => {
+        if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+          child.material.opacity = wallPulse;
+        }
+      });
+
+      // Atmospheric Fog Interaction
+      const dangerFactor = Math.max(0, 1 - (player.position.z - current.wallZ) / 35);
+      scene.fog.color.setHSL(0, 1, 0.05 + dangerFactor * 0.1);
+      (scene.fog as THREE.FogExp2).density = 0.012 + dangerFactor * 0.05;
 
       if (player.position.z <= current.wallZ) {
         handleGameOver();
@@ -581,6 +673,7 @@ export default function GameScene() {
     engineRef.current.segments = [];
     
     player.position.set(0, 1.8, 0);
+    player.rotation.y = Math.PI; // Face forward (+Z)
     for (let i = 0; i < 4; i++) {
       engineRef.current.segments.push(createSegment(i * SEGMENT_LENGTH));
     }
